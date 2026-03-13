@@ -44,7 +44,8 @@ const PreAuthFooter: React.FC = () => {
     const [syncState, setSyncState] = useState<PreAuthSyncState>('idle');
 
     useEffect(() => {
-        fetch('/metadata.json')
+        // @ts-ignore
+        fetch(`${import.meta.env.BASE_URL}metadata.json`)
             .then(response => response.json())
             .then(data => {
                 if (data && data.name) {

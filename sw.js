@@ -1,9 +1,11 @@
 // Incrementing the cache version forces the service worker to update and re-cache all assets.
 const CACHE_NAME = 'cjf-snaps-cache-v7';
+const BASE_URL = self.registration.scope;
+
 const URLS_TO_PRECACHE = [
-  '/',
-  '/index.html',
-  '/metadata.json'
+  BASE_URL,
+  `${BASE_URL}index.html`,
+  `${BASE_URL}metadata.json`
 ];
 
 self.addEventListener('install', event => {
