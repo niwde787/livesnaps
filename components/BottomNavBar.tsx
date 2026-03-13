@@ -74,7 +74,8 @@ export const BottomNavBar: React.FC = () => {
     const [version, setVersion] = useState('Live Snaps');
 
     useEffect(() => {
-        fetch('/metadata.json')
+        // @ts-ignore
+        fetch(`${import.meta.env.BASE_URL}metadata.json`)
             .then(response => response.json())
             .then(data => {
                 if (data && data.name) {
