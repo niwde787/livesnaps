@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snaps - The Ultimate Football Coaching Toolkit</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0619b3;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+        .gsap-hero-title, .gsap-hero-subtitle, .gsap-hero-cta, .gsap-nav-item, .gsap-logo, .gsap-hero-image, .gsap-gallery-item {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        /* Hero Carousel Styles */
+        .hero-image-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 1.2s ease-in-out;
+            border-radius: 1rem; /* Match parent's border radius */
+        }
+        .hero-image-slide.is-active {
+            opacity: 1;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+            transition: opacity 0.3s ease-in-out;
+        }
+        .modal-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .modal-content {
+            background-color: #1d2b78; /* A darker shade from the theme */
+            padding: 2rem;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        /* Image Modal Specific Styles */
+        #image-modal .modal-content {
+            background: none;
+            width: auto;
+            max-width: 90vw;
+            max-height: 90vh;
+            padding: 0;
+            box-shadow: none;
+            border: none;
+        }
+        #expanded-image {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Header -->
+    <header class="absolute top-0 left-0 w-full z-10 p-6 md:p-8">
+        <div class="container mx-auto flex justify-end items-center">
+             <nav class="hidden md:flex items-center space-x-8">
+                <a href="#gallery" class="text-white hover:opacity-80 transition-opacity gsap-nav-item">Features</a>
+                <a href="#about" class="text-white hover:opacity-80 transition-opacity gsap-nav-item">About</a>
+                <a href="#investors" class="text-white hover:opacity-80 transition-opacity gsap-nav-item">Investors</a>
+                <a href="#" id="admin-btn" class="text-white hover:opacity-80 transition-opacity gsap-nav-item">Admin</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <main class="relative overflow-hidden">
+        <div class="container mx-auto min-h-screen flex flex-col justify-center items-center text-center px-6 pt-24 pb-12">
+            <div class="gsap-logo mb-8 z-10">
+                 <img src="https://raw.githubusercontent.com/niwde787/CJF/1f4df5f83d0fbb85bc6ea1ac8ed36765f518e995/SNAPS_H.svg" alt="LiveSnaps Logo" class="h-16 md:h-20 w-auto">
+            </div>
+
+            <h1 class="text-5xl md:text-7xl font-extrabold leading-tight mb-4 gsap-hero-title">
+                From Sideline Data <br> to Winning Strategy.
+            </h1>
+            <p class="max-w-2xl text-lg md:text-xl text-gray-300 mb-8 gsap-hero-subtitle">
+                The all-in-one digital toolkit for modern football coaching. Track plays, analyze players, and generate AI-powered insights.
+            </p>
+
+            <a href="#" class="request-demo-btn bg-white text-[#0619b3] font-bold text-lg py-4 px-10 rounded-lg hover:bg-opacity-90 transition-all transform hover:scale-105 shadow-2xl gsap-hero-cta z-10 mb-12">
+                Request a Demo
+            </a>
+
+            <!-- Animated Hero Image Carousel -->
+            <div class="w-full max-w-5xl h-[55vh] max-h-[500px] relative gsap-hero-image rounded-2xl shadow-2xl border-2 border-white/10 overflow-hidden">
+                 <div id="hero-image-container" class="w-full h-full">
+                    <!-- Images will be injected by JavaScript -->
+                 </div>
+            </div>
+        </div>
+
+         <!-- Gallery Section -->
+        <section id="gallery" class="py-20">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4 gsap-section-title">A Coach's All-In-One Digital Toolkit</h2>
+                    <p class="max-w-2xl mx-auto text-gray-300 gsap-section-subtitle">
+                        From visual play tracking to AI-powered analytics, here's how we help you dominate the game.
+                    </p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <!-- Gallery Item 1 -->
+                    <div class="bg-white/5 p-6 rounded-xl border border-white/10 flex flex-col gsap-gallery-item">
+                        <img src="https://raw.githubusercontent.com/niwde787/CJF/app/04.png" alt="Real-Time Play Tracking" class="rounded-lg mb-4 w-full h-auto shadow-lg cursor-pointer gallery-image-clickable transition-transform duration-300 hover:scale-105">
+                        <h3 class="text-xl font-bold mb-2">Real-Time Play Tracking</h3>
+                        <p class="text-gray-300 text-sm flex-grow">Visually assign players and log detailed results for each play, creating a comprehensive, timestamped play-by-play log.</p>
+                    </div>
+                    <!-- Gallery Item 2 -->
+                    <div class="bg-white/5 p-6 rounded-xl border border-white/10 flex flex-col gsap-gallery-item">
+                        <img src="https://raw.githubusercontent.com/niwde787/CJF/app/17.png" alt="AI-Powered Summaries" class="rounded-lg mb-4 w-full h-auto shadow-lg cursor-pointer gallery-image-clickable transition-transform duration-300 hover:scale-105">
+                        <h3 class="text-xl font-bold mb-2">AI-Powered Summaries</h3>
+                        <p class="text-gray-300 text-sm flex-grow">Generate intelligent game and quarter summaries with the Gemini API, turning raw data into actionable coaching insights.</p>
+                    </div>
+                    <!-- Gallery Item 3 -->
+                    <div class="bg-white/5 p-6 rounded-xl border border-white/10 flex flex-col gsap-gallery-item">
+                        <img src="https://raw.githubusercontent.com/niwde787/CJF/app/10.png" alt="In-Depth Player Analytics" class="rounded-lg mb-4 w-full h-auto shadow-lg cursor-pointer gallery-image-clickable transition-transform duration-300 hover:scale-105">
+                        <h3 class="text-xl font-bold mb-2">In-Depth Player Analytics</h3>
+                        <p class="text-gray-300 text-sm flex-grow">Track total plays, participation percentage, and time on the field for each player, split by offense, defense, and special teams.</p>
+                    </div>
+                    <!-- Gallery Item 4 -->
+                    <div class="bg-white/5 p-6 rounded-xl border border-white/10 flex flex-col gsap-gallery-item">
+                        <img src="https://raw.githubusercontent.com/niwde787/CJF/app/07.png" alt="Custom Playbook Editor" class="rounded-lg mb-4 w-full h-auto shadow-lg cursor-pointer gallery-image-clickable transition-transform duration-300 hover:scale-105">
+                        <h3 class="text-xl font-bold mb-2">Custom Playbook Editor</h3>
+                        <p class="text-gray-300 text-sm flex-grow">Create new formations or modify existing ones in a powerful visual editor for faster game-day setup.</p>
+                    </div>
+                    <!-- Gallery Item 5 -->
+                    <div class="bg-white/5 p-6 rounded-xl border border-white/10 flex flex-col gsap-gallery-item">
+                        <img src="https://raw.githubusercontent.com/niwde787/CJF/app/08.png" alt="Comprehensive Dashboard" class="rounded-lg mb-4 w-full h-auto shadow-lg cursor-pointer gallery-image-clickable transition-transform duration-300 hover:scale-105">
+                        <h3 class="text-xl font-bold mb-2">Comprehensive Dashboard</h3>
+                        <p class="text-gray-300 text-sm flex-grow">Get an at-a-glance overview of key metrics, including snap count rankings, formation efficiency, and top performers.</p>
+                    </div>
+                    <!-- Gallery Item 6 -->
+                    <div class="bg-white/5 p-6 rounded-xl border border-white/10 flex flex-col gsap-gallery-item">
+                        <img src="https://raw.githubusercontent.com/niwde787/CJF/app/16.png" alt="Professional PDF Export" class="rounded-lg mb-4 w-full h-auto shadow-lg cursor-pointer gallery-image-clickable transition-transform duration-300 hover:scale-105">
+                        <h3 class="text-xl font-bold mb-2">Professional PDF Export</h3>
+                        <p class="text-gray-300 text-sm flex-grow">Generate a multi-page PDF report with final scores, detailed player stats, formation analytics, and a complete play-by-play log.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- About Section -->
+        <section id="about" class="py-20">
+            <div class="container mx-auto px-6 text-center">
+                <div class="max-w-3xl mx-auto">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-8 gsap-section-title">The Story Behind LiveSnaps</h2>
+                    <div class="text-left text-gray-300 space-y-4 gsap-section-subtitle">
+                        <p>
+                            LiveSnaps was born from a parent's simple question on the sidelines: "What's really happening out there?" I was frustrated by the lack of context during games—trying to understand the strategy, track my child's participation time, and make sense of the action on the field. I knew other parents felt the same, and I suspected even coaches wished for a clearer, more immediate picture of the game.
+                        </p>
+                        <p>
+                           I envisioned a tool that could bridge this gap for everyone. An app that would empower parents with real insights into their child's performance and, at the same time, equip coaches with powerful data to manage playing time effectively and make smarter strategic decisions. After months of development, LiveSnaps was created. It's the tool I always wished I had in the stands—built to give parents and coaches a shared, powerful new vision of the game.
+                        </p>
+                         <p>
+                           From sideline data to winning strategy. Most coaches spent countless hours manually tracking plays, compiling stats on clunky spreadsheets, and struggling to give players the specific, data-backed feedback they needed to improve. I knew there had to be a better way.
+                        </p>
+                        <p>
+                            I envisioned a tool that was as intuitive as drawing on a whiteboard but as powerful as a professional analytics suite. An app that could not only log what happened on the field but could also provide intelligent insights to answer the "why." After months of development, fueled by late nights, LiveSnaps was created get ready to turn sideline data into a winning strategy.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Investors Section -->
+        <section id="investors" class="py-20">
+            <div class="container mx-auto px-6 text-center">
+                <div class="max-w-3xl mx-auto">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-8 gsap-section-title">Join Us in Redefining the Game</h2>
+                    <div class="text-left text-gray-300 space-y-4 gsap-section-subtitle">
+                        <p>
+                            LiveSnaps is at the forefront of a significant shift in sports technology, bringing data-driven insights to a passionate and underserved market. We are currently seeking strategic partners to help us scale our vision, expand our feature set, and bring LiveSnaps to teams, leagues, and communities worldwide.
+                        </p>
+                        <p>
+                           We have a proven product, a clear roadmap, and a dedicated team. If you are interested in learning more about the market opportunity and our plans for the future, we invite you to connect with us. Please use the "Request a Demo" button to get in touch.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="py-20">
+            <div class="container mx-auto px-6 text-center">
+                 <div class="bg-white/10 rounded-2xl p-10 md:p-16 max-w-4xl mx-auto gsap-cta-section">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4">Elevate Your Coaching</h2>
+                    <p class="max-w-xl mx-auto text-gray-300 mb-8">
+                        From sideline data to winning strategy. Get the AI-powered insights you need to build winning strategies and develop your players.
+                    </p>
+                    <a href="#" class="request-demo-btn bg-white text-[#0619b3] font-bold text-lg py-4 px-10 rounded-lg hover:bg-opacity-90 transition-all transform hover:scale-105 shadow-2xl">
+                        Request a Demo
+                    </a>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-8">
+        <div class="container mx-auto text-center text-gray-400">
+            <p>&copy; 2024 LiveSnaps. All rights reserved.</p>
+        </div>
+    </footer>
+
+     <!-- Demo Request Modal -->
+    <div id="demo-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="close-demo-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">&times;</button>
+            <h2 class="text-2xl font-bold mb-4 text-center">Request a Demo</h2>
+            <p class="text-gray-300 text-center mb-6">Let's connect and show you how Snaps can revolutionize your coaching.</p>
+            <form id="demo-form">
+                <div class="mb-4">
+                    <label for="name" class="block text-sm font-medium text-gray-300 mb-2">Full Name</label>
+                    <input type="text" id="name" name="name" required class="w-full bg-white/10 p-3 rounded-lg border border-white/20 focus:ring-2 focus:ring-white focus:outline-none transition-all">
+                </div>
+                <div class="mb-4">
+                    <label for="organization" class="block text-sm font-medium text-gray-300 mb-2">Organization / Team</label>
+                    <input type="text" id="organization" name="organization" required class="w-full bg-white/10 p-3 rounded-lg border border-white/20 focus:ring-2 focus:ring-white focus:outline-none transition-all">
+                </div>
+                <div class="mb-6">
+                    <label for="email" class="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
+                    <input type="email" id="email" name="email" required class="w-full bg-white/10 p-3 rounded-lg border border-white/20 focus:ring-2 focus:ring-white focus:outline-none transition-all">
+                </div>
+                <button type="submit" id="submit-btn" class="w-full bg-white text-[#0619b3] font-bold py-3 px-6 rounded-lg hover:bg-opacity-90 transition-all transform hover:scale-105">Submit Request</button>
+                <p id="form-status" class="text-center mt-4 text-sm"></p>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Admin Login Modal -->
+    <div id="admin-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="close-admin-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">&times;</button>
+            <h2 class="text-2xl font-bold mb-4 text-center">Admin Login</h2>
+            <form id="admin-form">
+                <div class="mb-4">
+                    <label for="username" class="block text-sm font-medium text-gray-300 mb-2">Username</label>
+                    <input type="text" id="username" name="username" required class="w-full bg-white/10 p-3 rounded-lg border border-white/20 focus:ring-2 focus:ring-white focus:outline-none transition-all">
+                </div>
+                <div class="mb-6">
+                    <label for="password" class="block text-sm font-medium text-gray-300 mb-2">Password</label>
+                    <input type="password" id="password" name="password" required class="w-full bg-white/10 p-3 rounded-lg border border-white/20 focus:ring-2 focus:ring-white focus:outline-none transition-all">
+                </div>
+                <button type="submit" class="w-full bg-white text-[#0619b3] font-bold py-3 px-6 rounded-lg hover:bg-opacity-90 transition-all transform hover:scale-105">Login</button>
+                <p id="admin-form-status" class="text-center mt-4 text-sm text-red-400"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Image Expansion Modal -->
+    <div id="image-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <img id="expanded-image" src="" alt="Expanded Gallery Image">
+        </div>
+        <button id="close-image-modal-btn" class="absolute top-6 right-6 text-white text-4xl font-bold hover:opacity-80 transition-opacity">&times;</button>
+    </div>
+
+    <!-- Back to Top Button -->
+    <button id="back-to-top" class="fixed bottom-8 right-8 bg-white text-[#0619b3] w-12 h-12 rounded-full flex justify-center items-center shadow-lg transition-all duration-300 opacity-0 pointer-events-none hover:bg-opacity-90 hover:scale-110 z-40">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+    </button>
+
+
+    <!-- GSAP Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.5/ScrollTrigger.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            gsap.registerPlugin(ScrollTrigger);
+
+            const tl = gsap.timeline({ defaults: { ease: 'power3.out', duration: 1 } });
+            
+            // --- Page Load Animation ---
+            tl.to('.gsap-logo', { opacity: 1, y: 0, delay: 0.2 })
+              .to('.gsap-nav-item', { opacity: 1, y: 0, stagger: 0.1 }, "-=0.8")
+              .fromTo('.gsap-hero-title', { opacity: 0, y: 20 }, { opacity: 1, y: 0 }, "-=0.7")
+              .fromTo('.gsap-hero-subtitle', { opacity: 0, y: 20 }, { opacity: 1, y: 0 }, "-=0.8")
+              .to('.gsap-hero-cta', { opacity: 1, y: 0 }, "-=0.8")
+              .fromTo('.gsap-hero-image', { opacity: 0, y: 50, scale: 0.95 }, { opacity: 1, y: 0, scale: 1, duration: 1.2 }, "-=0.6");
+
+            
+            // --- Hero Image Carousel Logic ---
+            const heroImages = [
+                'https://raw.githubusercontent.com/niwde787/CJF/app/01.png',
+                'https://raw.githubusercontent.com/niwde787/CJF/app/02.png',
+                'https://raw.githubusercontent.com/niwde787/CJF/app/03.png',
+                'https://raw.githubusercontent.com/niwde787/CJF/app/04.png',
+                'https://raw.githubusercontent.com/niwde787/CJF/app/05.png',
+                'https://raw.githubusercontent.com/niwde787/CJF/app/06.png',
+                'https://raw.githubusercontent.com/niwde787/CJF/app/07.png',
+                'https://raw.githubusercontent.com/niwde787/CJF/app/08.png',
+                'https://raw.githubusercontent.com/niwde787/CJF/app/09.png',
+                'https://raw.githubusercontent.com/niwde787/CJF/app/10.png',
+                'https://raw.githubusercontent.com/niwde787/CJF/app/11.png',
+                'https://raw.githubusercontent.com/niwde787/CJF/app/12.png',
+                'https://raw.githubusercontent.com/niwde787/CJF/app/13.png',
+                'https://raw.githubusercontent.com/niwde787/CJF/app/14.png',
+                'https://raw.githubusercontent.com/niwde787/CJF/app/15.png',
+                'https://raw.githubusercontent.com/niwde787/CJF/app/16.png',
+                'https://raw.githubusercontent.com/niwde787/CJF/app/17.png'
+            ];
+            const imageContainer = document.getElementById('hero-image-container');
+            if (imageContainer) {
+                let currentImageIndex = 0;
+
+                heroImages.forEach((src, index) => {
+                    const img = document.createElement('img');
+                    img.src = src;
+                    img.alt = 'Snaps App Screenshot';
+                    img.className = 'hero-image-slide';
+                    if (index === 0) img.classList.add('is-active');
+                    imageContainer.appendChild(img);
+                });
+
+                const slides = imageContainer.querySelectorAll('.hero-image-slide');
+
+                if(slides.length > 1) {
+                    setInterval(() => {
+                        slides[currentImageIndex].classList.remove('is-active');
+                        currentImageIndex = (currentImageIndex + 1) % slides.length;
+                        slides[currentImageIndex].classList.add('is-active');
+                    }, 4000);
+                }
+            }
+
+
+            // --- Section & Gallery Scroll Animations ---
+            const sections = gsap.utils.toArray('section');
+            sections.forEach(section => {
+                 const sectionTl = gsap.timeline({ 
+                    scrollTrigger: {
+                        trigger: section,
+                        start: 'top 85%',
+                        toggleActions: 'play none none none',
+                    }
+                });
+                
+                const sectionTitle = section.querySelector('.gsap-section-title');
+                const sectionSubtitle = section.querySelector('.gsap-section-subtitle');
+                const galleryItems = section.querySelectorAll('.gsap-gallery-item');
+                const ctaSection = section.querySelector('.gsap-cta-section');
+
+                if (sectionTitle) sectionTl.fromTo(sectionTitle, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.8 });
+                if (sectionSubtitle) sectionTl.fromTo(sectionSubtitle, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.8 }, "-=0.6");
+                if (galleryItems.length > 0) sectionTl.fromTo(galleryItems, { opacity: 0, y: 30 }, { opacity: 1, y: 0, stagger: 0.15, duration: 0.6 }, "-=0.5");
+                if (ctaSection) sectionTl.fromTo(ctaSection, { opacity: 0, scale: 0.95 }, { opacity: 1, scale: 1, duration: 1 });
+            });
+            
+            
+            // --- Modal Logic ---
+            // Demo Modal
+            const demoModal = document.getElementById('demo-modal');
+            const demoButtons = document.querySelectorAll('.request-demo-btn');
+            const closeDemoModalBtn = document.getElementById('close-demo-modal-btn');
+            const openDemoModal = () => demoModal.classList.remove('hidden');
+            const closeDemoModal = () => demoModal.classList.add('hidden');
+            demoButtons.forEach(btn => btn.addEventListener('click', (e) => { e.preventDefault(); openDemoModal(); }));
+            closeDemoModalBtn.addEventListener('click', closeDemoModal);
+            demoModal.addEventListener('click', (e) => { if (e.target === demoModal) closeDemoModal(); });
+
+            // Admin Modal
+            const adminModal = document.getElementById('admin-modal');
+            const adminBtn = document.getElementById('admin-btn');
+            const closeAdminModalBtn = document.getElementById('close-admin-modal-btn');
+            const openAdminModal = () => adminModal.classList.remove('hidden');
+            const closeAdminModal = () => adminModal.classList.add('hidden');
+            adminBtn.addEventListener('click', (e) => { e.preventDefault(); openAdminModal(); });
+            closeAdminModalBtn.addEventListener('click', closeAdminModal);
+            adminModal.addEventListener('click', (e) => { if (e.target === adminModal) closeAdminModal(); });
+
+
+            // Image Modal
+            const imageModal = document.getElementById('image-modal');
+            const expandedImage = document.getElementById('expanded-image');
+            const galleryImages = document.querySelectorAll('.gallery-image-clickable');
+            const closeImageModalBtn = document.getElementById('close-image-modal-btn');
+            const openImageModal = (src) => { expandedImage.src = src; imageModal.classList.remove('hidden'); };
+            const closeImageModal = () => imageModal.classList.add('hidden');
+            galleryImages.forEach(img => img.addEventListener('click', () => openImageModal(img.src)));
+            closeImageModalBtn.addEventListener('click', closeImageModal);
+            imageModal.addEventListener('click', (e) => { if (e.target !== expandedImage) closeImageModal(); });
+
+
+            // --- Form Submission ---
+            const scriptURL = 'https://script.google.com/macros/s/AKfycbxknhPYnuZZO4QC3tc0_ANt45y_uGufVafbZfDi7u9sjnQbDmQpOLsbgGF_vMyenSxN/exec'; 
+            
+            // Demo Form
+            const demoForm = document.getElementById('demo-form');
+            const demoSubmitBtn = document.getElementById('submit-btn');
+            const demoFormStatus = document.getElementById('form-status');
+
+            demoForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const originalBtnText = demoSubmitBtn.textContent;
+                demoSubmitBtn.disabled = true;
+                demoSubmitBtn.textContent = 'Submitting...';
+                demoFormStatus.textContent = '';
+                
+                const formData = new FormData(demoForm);
+
+                fetch(scriptURL, { 
+                    method: 'POST', 
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(Object.fromEntries(formData))
+                })
+                .then(response => {
+                    demoFormStatus.textContent = 'Success! Your message has been sent.';
+                    demoFormStatus.style.color = '#4ade80';
+                    demoForm.reset();
+                    setTimeout(closeDemoModal, 2000);
+                })
+                .catch(error => {
+                    console.error('Error!', error.message);
+                    demoFormStatus.textContent = 'Error: Could not submit. Please try again.';
+                    demoFormStatus.style.color = '#f87171';
+                })
+                .finally(() => {
+                    demoSubmitBtn.disabled = false;
+                    demoSubmitBtn.textContent = originalBtnText;
+                });
+            });
+            
+            // Admin Form
+            const adminForm = document.getElementById('admin-form');
+            const adminFormStatus = document.getElementById('admin-form-status');
+            adminForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const username = adminForm.username.value;
+                const password = adminForm.password.value;
+                
+                // Set the correct credentials
+                const correctUsername = "nicholaskartos";
+                const correctPassword = "livedemo";
+                
+                if (username === correctUsername && password === correctPassword) {
+                    adminFormStatus.textContent = 'Login successful! Opening admin page in a new tab...';
+                    adminFormStatus.style.color = '#4ade80';
+
+                    // Log the successful login to the Google Sheet
+                    const loginData = {
+                        name: 'Admin Login Success',
+                        organization: username,
+                        email: new Date().toISOString()
+                    };
+
+                    fetch(scriptURL, { 
+                        method: 'POST', 
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(loginData)
+                    }).catch(error => console.error('Error logging admin access:', error.message));
+
+
+                    // Redirect to the specified URL by opening in a new tab
+                    setTimeout(() => {
+                        window.open('https://demo.livesnaps.app/', '_blank');
+                    }, 1000);
+                } else {
+                    adminFormStatus.textContent = 'Invalid username or password.';
+                    adminForm.password.value = ''; // Clear password field
+                }
+            });
+
+
+            // --- Back to Top Button Logic ---
+            const backToTopBtn = document.getElementById('back-to-top');
+            if (backToTopBtn) {
+                window.addEventListener('scroll', () => {
+                    if (window.scrollY > 400) { // Show button after scrolling 400px
+                        backToTopBtn.classList.remove('opacity-0', 'pointer-events-none');
+                    } else {
+                        backToTopBtn.classList.add('opacity-0', 'pointer-events-none');
+                    }
+                });
+                backToTopBtn.addEventListener('click', () => {
+                    window.scrollTo({
+                        top: 0,
+                        behavior: 'smooth'
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+
+

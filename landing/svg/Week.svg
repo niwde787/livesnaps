@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 337.29 83.34">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #00a2ff;
+      }
+
+      .cls-2 {
+        font-family: Roboto-Bold, Roboto;
+        font-size: 20px;
+        font-weight: 700;
+      }
+
+      .cls-2, .cls-3 {
+        fill: #fff;
+      }
+
+      .cls-4 {
+        letter-spacing: -.01em;
+      }
+    </style>
+  </defs>
+  <g id="Layer_1-2" data-name="Layer 1">
+    <g>
+      <rect class="cls-1" width="337.29" height="83.34"/>
+      <text class="cls-2" transform="translate(87.53 47.51)"><tspan x="0" y="0">WEEK SELE</tspan><tspan class="cls-4" x="103.29" y="0">C</tspan><tspan x="116.09" y="0">TION</tspan></text>
+      <polygon class="cls-3" points="272.83 33.84 287.33 49.5 301.83 33.84 272.83 33.84"/>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 352.49 213.05">
+  <defs>
+    <style>
+      .cls-1 {
+        letter-spacing: -.01em;
+      }
+
+      .cls-2 {
+        font-family: DJBGetDigital, 'DJB Get Digital';
+        font-size: 172.67px;
+        letter-spacing: .18em;
+      }
+
+      .cls-2, .cls-3 {
+        fill: #fff;
+      }
+
+      .cls-3 {
+        font-family: Roboto-Bold, Roboto;
+        font-size: 43.25px;
+        font-weight: 700;
+      }
+
+      .cls-4 {
+        letter-spacing: 0em;
+      }
+
+      .cls-5 {
+        letter-spacing: -.02em;
+      }
+    </style>
+  </defs>
+  <g id="Layer_1-2" data-name="Layer 1">
+    <g>
+      <text class="cls-3" transform="translate(62.36 196.1)"><tspan x="0" y="0">Q</tspan><tspan class="cls-1" x="29.86" y="0">U</tspan><tspan x="57.86" y="0">A</tspan><tspan class="cls-5" x="86.96" y="0">R</tspan><tspan class="cls-4" x="113.51" y="0">TER 1</tspan></text>
+      <g>
+        <g>
+          <text class="cls-2" transform="translate(0 159.6)"><tspan x="0" y="0">8</tspan></text>
+          <text class="cls-2" transform="translate(80 159.6)"><tspan x="0" y="0">8</tspan></text>
+          <text class="cls-2" transform="translate(187 159.6)"><tspan x="0" y="0">8</tspan></text>
+          <text class="cls-2" transform="translate(267 159.6)"><tspan x="0" y="0">8</tspan></text>
+        </g>
+        <text class="cls-2" transform="translate(159.05 148.6)"><tspan x="0" y="0">:</tspan></text>
+      </g>
+    </g>
+  </g>
+</svg>
