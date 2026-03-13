@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snaps - The Ultimate Football Coaching Toolkit</title>
+    <style>
+        /* Basic reset to make the iframe fullscreen */
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Prevents scrollbars on the main page */
+        }
+        /* Style the iframe to fill the entire body */
+        #preview-frame {
+            width: 100%;
+            height: 100%;
+            border: none; /* Removes the default border */
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- The iframe will take up the entire screen -->
+    <iframe 
+        id="preview-frame"
+        src="" 
+        title="Live Snaps App Preview">
+        Your browser does not support iframes.
+    </iframe>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Iframe Obfuscation Logic ---
+            // This script decodes the URL and sets it as the source for the iframe.
+            // The URL is encoded in Base64 to make it not immediately readable in the source code.
+            const encodedUrl = "aHR0cHM6Ly9saXZlLXNuYXBzLTItMC05MTUyMTM1NDA4MjcudXMtd2VzdDEucnVuLmFwcC8=";
+            const decodedUrl = atob(encodedUrl);
+            const iframe = document.getElementById('preview-frame');
+            if (iframe) {
+                iframe.src = decodedUrl;
+            }
+        });
+    </script>
+</body>
+</html>
