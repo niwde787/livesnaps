@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { SpinnerIcon } from './icons';
 import { PlayerStatus } from '../types';
 import { DEFAULT_PLAYER_IMAGE, ALL_POSITION_OPTIONS } from '../constants';
@@ -46,7 +47,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({ onClose, onAddPlayer })
         onClose();
     };
 
-    return (
+    return ReactDOM.createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50 p-4" onClick={onClose}>
             <form onSubmit={handleSubmit} className="glass-effect rounded-lg shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
                 <header className="p-4 border-b border-[var(--border-primary)]">
@@ -134,7 +135,8 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({ onClose, onAddPlayer })
                     </button>
                 </footer>
             </form>
-        </div>
+        </div>,
+        document.body
     );
 };
 
