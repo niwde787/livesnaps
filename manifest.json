@@ -9,16 +9,6 @@
   "orientation": "landscape-primary",
   "icons": [
     {
-      "src": "https://raw.githubusercontent.com/niwde787/CJF/main/CJF_Icon_192.png",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "https://raw.githubusercontent.com/niwde787/CJF/main/CJF_Icon_512.png",
-      "type": "image/png",
-      "sizes": "512x512"
-    },
-    {
       "src": "https://raw.githubusercontent.com/niwde787/CJF/main/SNAPS_S.svg",
       "sizes": "any",
       "type": "image/svg+xml",
