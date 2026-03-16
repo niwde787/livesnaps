@@ -1,7 +1,7 @@
 // ... (imports remain the same)
 import { firebaseConfig } from './firebaseConfig';
 import { Player, Play, FormationCollection, StoredGameState, CustomFormations, NavBarPosition, WeekData, SerializablePlay, PlayerStatus, AgeDivision } from './types';
-import { GAME_DATA, BLANK_WEEK_DATA, DEFAULT_PLAYER_IMAGE, WEEKS, DEFAULT_CUSTOM_THEME } from './constants';
+import { GAME_DATA, BLANK_WEEK_DATA, DEFAULT_PLAYER_IMAGE, WEEKS } from './constants';
 import { DEFAULT_OFFENSE_FORMATIONS, DEFAULT_DEFENSE_FORMATIONS, DEFAULT_SPECIAL_TEAMS_FORMATIONS } from './defaultFormations';
 import { removeUndefinedValues } from './utils';
 
@@ -122,15 +122,13 @@ export const initializeNewUser = (userId: string, teamName: string, coachName: s
         coachName,
         ageDivision,
         teamCity: '',
-        theme: 'dark',
-        navBarPosition: 'bottom',
-        customTheme: DEFAULT_CUSTOM_THEME,
         schedule: defaultSchedule,
         formations: {
             offense: createTombstoneObject(DEFAULT_OFFENSE_FORMATIONS),
             defense: createTombstoneObject(DEFAULT_DEFENSE_FORMATIONS),
             specialTeams: createTombstoneObject(DEFAULT_SPECIAL_TEAMS_FORMATIONS),
         },
+        theme: 'dark',
         // This merges with the role set in the previous step
     };
 
