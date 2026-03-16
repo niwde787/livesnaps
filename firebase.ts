@@ -107,7 +107,7 @@ export const initializeNewUser = (userId: string, teamName: string, coachName: s
     const userDocRef = usersCollection().doc(userId);
     const batch = db.batch();
 
-    const defaultWeeks: string[] = [];
+    const defaultWeeks: string[] = WEEKS;
     const defaultSchedule = {
         weeks: defaultWeeks,
         opponents: {},
@@ -391,6 +391,11 @@ export const listenToUserSettings = (userId: string, callback: (settings: any) =
 export const saveUserSettingsToFirebase = (userId: string, settings: any) => {
     const cleanSettings = removeUndefinedValues(settings);
     return usersCollection().doc(userId).set(cleanSettings, { merge: true });
+};
+
+// Function to create a week document if it doesn't exist
+export const createWeekDoc = (userId: string, weekId: string) => {
+    return weekCollection(userId).doc(weekId).set(BLANK_WEEK_DATA);
 };
 
 
