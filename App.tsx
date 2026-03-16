@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactDOM from 'react-dom';
+import { GameClockProvider } from './contexts/GameClockContext';
 import { GameStateProvider, useGameState } from './contexts/GameStateContext';
 import LoginScreen from './components/LoginScreen';
 import MainMenuScreen from './components/MainMenuScreen';
@@ -206,86 +207,78 @@ const App: React.FC = () => {
         return <SplashScreen onProceed={() => setHasProceeded(true)} />;
     }
 
-    if (isAuthLoading) {
-        return (
-            <div className="min-h-screen bg-[var(--bg-primary)] flex justify-center items-center">
-                <SpinnerIcon className="w-12 h-12 text-[var(--accent-primary)]" />
-            </div>
-        );
-    }
-    
-    // New pre-authentication flow
-    if (!user) {
-        if (showPublicLeaderboard) {
-            return (
-                <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 sm:p-8">
-                    {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
-                    <div className="max-w-7xl mx-auto">
-                        <button 
-                            onClick={() => setShowPublicLeaderboard(false)}
-                            className="mb-6 flex items-center gap-2 text-[var(--text-secondary)] hover:text-white transition-colors"
-                        >
-                            <Icon name="arrow-left" className="w-5 h-5" />
-                            Back to Menu
-                        </button>
-                        <LeaderboardView />
-                    </div>
+    return (
+        <GameClockProvider>
+            {isAuthLoading ? (
+                <div className="min-h-screen bg-[var(--bg-primary)] flex justify-center items-center">
+                    <SpinnerIcon className="w-12 h-12 text-[var(--accent-primary)]" />
                 </div>
-            );
-        }
-        if (authPath) {
-            return <>
-                {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
-                <LoginScreen onBack={() => { setAuthPath(null); setInitialEmail(''); }} initialMode={initialAuthMode} initialEmail={initialEmail} />
-                <PreAuthFooter />
-            </>;
-        }
-        return <>
-            {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
-            <MainMenuScreen setAuthPath={handleSetAuthPath} onShowLeaderboard={() => setShowPublicLeaderboard(true)} />
-            <PreAuthFooter />
-        </>;
-    }
-
-    // Authenticated user flow
-    if (onboardingStep === 'role_selection') return <>
-        {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
-        <RoleSelectionScreen onRoleSelect={handleRoleSelect} />
-        <PreAuthFooter />
-    </>;
-    if (onboardingStep === 'welcome') return <>
-        {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
-        <WelcomeScreen onTeamCreate={handleTeamCreate} />
-        <PreAuthFooter />
-    </>;
-
-    // Final 'complete' state render
-    if (userRole === 'coach') {
-      return (
-          <ErrorBoundary>
-              <GameStateProvider user={user} initialShowWalkthrough={initialShowWalkthrough}>
-                  {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
-                  <AppContent />
-              </GameStateProvider>
-          </ErrorBoundary>
-      );
-    }
-
-    if (userRole === 'viewer') {
-        return <>
-            {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
-            <ViewerContainer />
-        </>;
-    }
-
-    if (userRole === 'admin') {
-        return <>
-            {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
-            <AdminContainer user={user} />
-        </>;
-    }
-
-    return null; // Should not be reached
+            ) : !user ? (
+                <>
+                    {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
+                    {showPublicLeaderboard ? (
+                        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 sm:p-8">
+                            <div className="max-w-7xl mx-auto">
+                                <button 
+                                    onClick={() => setShowPublicLeaderboard(false)}
+                                    className="mb-6 flex items-center gap-2 text-[var(--text-secondary)] hover:text-white transition-colors"
+                                >
+                                    <Icon name="arrow-left" className="w-5 h-5" />
+                                    Back to Menu
+                                </button>
+                                <LeaderboardView />
+                            </div>
+                        </div>
+                    ) : authPath ? (
+                        <>
+                            <LoginScreen onBack={() => { setAuthPath(null); setInitialEmail(''); }} initialMode={initialAuthMode} initialEmail={initialEmail} />
+                            <PreAuthFooter />
+                        </>
+                    ) : (
+                        <>
+                            <MainMenuScreen setAuthPath={handleSetAuthPath} onShowLeaderboard={() => setShowPublicLeaderboard(true)} />
+                            <PreAuthFooter />
+                        </>
+                    )}
+                </>
+            ) : onboardingStep === 'role_selection' ? (
+                <>
+                    {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
+                    <RoleSelectionScreen onRoleSelect={handleRoleSelect} />
+                    <PreAuthFooter />
+                </>
+            ) : onboardingStep === 'welcome' ? (
+                <>
+                    {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
+                    <WelcomeScreen onTeamCreate={handleTeamCreate} />
+                    <PreAuthFooter />
+                </>
+            ) : (
+                <>
+                    {userRole === 'coach' && (
+                        <ErrorBoundary>
+                            <GameStateProvider user={user} initialShowWalkthrough={initialShowWalkthrough}>
+                                {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
+                                <AppContent />
+                            </GameStateProvider>
+                        </ErrorBoundary>
+                    )}
+                    {userRole === 'viewer' && (
+                        <>
+                            {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
+                            <ViewerContainer />
+                        </>
+                    )}
+                    {userRole === 'admin' && (
+                        <>
+                            {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
+                            <AdminContainer user={user} />
+                        </>
+                    )}
+                </>
+            )}
+        </GameClockProvider>
+    );
 };
 
 

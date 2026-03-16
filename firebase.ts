@@ -1,4 +1,4 @@
-// ... (imports remain the same)
+// Firebase initialization and services
 import { firebaseConfig } from './firebaseConfig';
 import { Player, Play, FormationCollection, StoredGameState, CustomFormations, NavBarPosition, WeekData, SerializablePlay, PlayerStatus, AgeDivision } from './types';
 import { GAME_DATA, BLANK_WEEK_DATA, DEFAULT_PLAYER_IMAGE, WEEKS } from './constants';
@@ -8,7 +8,12 @@ import { removeUndefinedValues } from './utils';
 declare const firebase: any;
 
 // Initialize Firebase
-const app = firebase.initializeApp(firebaseConfig);
+let app;
+try {
+    app = firebase.app();
+} catch (e) {
+    app = firebase.initializeApp(firebaseConfig);
+}
 export const auth = firebase.auth();
 const dbInstance = firebase.firestore();
 export const functions = firebase.functions();
@@ -180,19 +185,21 @@ export const saveInitialRoster = (userId: string, seasonWeeks: string[], players
     return batch.commit();
 };
 
-export const addPlayerToAllWeeks = (userId: string, seasonWeeks: string[], newPlayer: Player) => {
+export const addPlayerToAllWeeks = (userId: string, seasonWeeks: string[], newPlayer: Player, depthChart?: Record<string, string[]>) => {
     const cleanPlayer = removeUndefinedValues(newPlayer);
     const batch = db.batch();
     seasonWeeks.forEach(weekId => {
         const weekDocRef = usersCollection().doc(userId).collection('weeks').doc(weekId);
-        batch.update(weekDocRef, {
+        const updates: any = {
             players: firebase.firestore.FieldValue.arrayUnion(cleanPlayer)
-        });
+        };
+        if (depthChart) updates.depthChart = removeUndefinedValues(depthChart);
+        batch.update(weekDocRef, updates);
     });
     return batch.commit();
 };
 
-export const updatePlayerInAllWeeks = async (userId: string, seasonWeeks: string[], playerId: string, updates: Partial<Player>) => {
+export const updatePlayerInAllWeeks = async (userId: string, seasonWeeks: string[], playerId: string, updates: Partial<Player>, depthChart?: Record<string, string[]>) => {
     const batch = db.batch();
     for (const weekId of seasonWeeks) {
         const weekDocRef = usersCollection().doc(userId).collection('weeks').doc(weekId);
@@ -206,33 +213,46 @@ export const updatePlayerInAllWeeks = async (userId: string, seasonWeeks: string
                 }
                 return p;
             });
-            batch.update(weekDocRef, { players: updatedPlayers });
+            const updatePayload: any = { players: updatedPlayers };
+            if (depthChart) updatePayload.depthChart = removeUndefinedValues(depthChart);
+            batch.update(weekDocRef, updatePayload);
         }
     }
     return batch.commit();
 };
 
-export const updateRosterForAllWeeks = (userId: string, seasonWeeks: string[], newPlayerList: Player[]) => {
+export const updateRosterForAllWeeks = (userId: string, seasonWeeks: string[], newPlayerList: Player[], depthChart?: Record<string, string[]>, currentLineups?: Record<string, (string | null)[]>) => {
+    console.log("updateRosterForAllWeeks:", { userId, seasonWeeks, newPlayerListLength: newPlayerList.length });
     const cleanPlayerList = removeUndefinedValues(newPlayerList);
     const batch = db.batch();
+    
+    const updates: any = { players: cleanPlayerList };
+    if (depthChart) updates.depthChart = removeUndefinedValues(depthChart);
+    if (currentLineups) updates.currentLineups = removeUndefinedValues(currentLineups);
+
     seasonWeeks.forEach(weekId => {
         const weekDocRef = usersCollection().doc(userId).collection('weeks').doc(weekId);
-        // This will overwrite the entire players array for each week.
-        batch.update(weekDocRef, { players: cleanPlayerList });
+        console.log("updateRosterForAllWeeks batch.update:", weekDocRef.path);
+        batch.update(weekDocRef, updates);
     });
-    return batch.commit();
+    return batch.commit()
+        .then(() => console.log("updateRosterForAllWeeks success"))
+        .catch(err => console.error("updateRosterForAllWeeks error:", err));
 }
 
 export const deletePlayerFromAllWeeks = async (userId: string, seasonWeeks: string[], playerId: string) => {
+    console.log("deletePlayerFromAllWeeks:", { userId, seasonWeeks, playerId });
     const batch = db.batch();
     for (const weekId of seasonWeeks) {
         const weekDocRef = usersCollection().doc(userId).collection('weeks').doc(weekId);
         const doc = await weekDocRef.get();
+        console.log("weekDocRef:", weekDocRef.path, "exists:", doc.exists);
         if (doc.exists) {
             const data = doc.data();
             
             // 1. Update players array
             const players = (data.players as Player[] || []).filter(p => p.id !== playerId);
+            console.log("players after filter:", players.length);
             
             // 2. Update depth chart
             const depthChart = data.depthChart as Record<string, string[]> | undefined;
@@ -289,36 +309,51 @@ export const listenToGameState = (
     const weekDocRef = weekCollection(userId).doc(weekId);
     const unsubscribers: { [key: string]: () => void } = {};
 
-    unsubscribers.week = weekDocRef.onSnapshot((weekDoc: any) => {
-        // If a listener for plays already exists and we are not supposed to listen to it (or re-initializing), remove it.
-        if (unsubscribers.plays) {
-            unsubscribers.plays();
-            delete unsubscribers.plays; // Ensure it's removed from tracker
-        }
+    let lastPlayHistory: SerializablePlay[] = [];
 
+    unsubscribers.week = weekDocRef.onSnapshot((weekDoc: any) => {
+        console.log("listenToGameState onSnapshot:", { exists: weekDoc.exists, weekId });
+        // If a listener for plays already exists and we are not supposed to listen to it (or re-initializing), remove it.
+        // Optimization: Only kill and recreate if it doesn't exist yet to prevent redundant reads when week metadata changes.
         if (weekDoc.exists) {
             const weekData = weekDoc.data();
+            console.log("weekData:", weekData);
 
             // Optimization for Viewers: Read 'viewerPlayHistory' from the main doc instead of subcollection.
             // This saves N reads per viewer, where N is the number of plays.
             if (isViewer && weekData.viewerPlayHistory) {
-                const fullGameState = { ...weekData, playHistory: weekData.viewerPlayHistory };
+                if (unsubscribers.plays) {
+                    unsubscribers.plays();
+                    delete unsubscribers.plays;
+                }
+                lastPlayHistory = weekData.viewerPlayHistory;
+                const fullGameState = { ...weekData, playHistory: lastPlayHistory };
                 callback({ data: fullGameState as StoredGameState });
                 return; // Exit early, do not set up subcollection listener
             }
 
             // Coaches (or fallback if viewerPlayHistory missing): Listen to subcollection
-            unsubscribers.plays = weekDocRef.collection('plays').orderBy('timestamp', 'asc').onSnapshot((playsSnapshot: any) => {
-                const playHistory = playsSnapshot.docs.map((doc: any) => doc.data() as SerializablePlay);
-                // Combine week metadata with the plays from the subcollection
-                const fullGameState = { ...weekData, playHistory };
+            if (!unsubscribers.plays) {
+                unsubscribers.plays = weekDocRef.collection('plays').orderBy('timestamp', 'asc').onSnapshot((playsSnapshot: any) => {
+                    lastPlayHistory = playsSnapshot.docs.map((doc: any) => doc.data() as SerializablePlay);
+                    // Combine week metadata with the plays from the subcollection
+                    const fullGameState = { ...weekDoc.data(), playHistory: lastPlayHistory };
+                    callback({ data: fullGameState as StoredGameState });
+                }, (playsError: any) => {
+                    console.error("Error listening to plays subcollection:", playsError);
+                    // If plays fail to load, return metadata with empty plays array
+                    callback({ data: { ...weekDoc.data(), playHistory: lastPlayHistory }, error: playsError });
+                });
+            } else {
+                // If plays listener already exists, just update with the new week metadata and existing playHistory
+                const fullGameState = { ...weekData, playHistory: lastPlayHistory };
                 callback({ data: fullGameState as StoredGameState });
-            }, (playsError: any) => {
-                console.error("Error listening to plays subcollection:", playsError);
-                // If plays fail to load, return metadata with empty plays array
-                callback({ data: { ...weekData, playHistory: [] }, error: playsError });
-            });
+            }
         } else {
+            if (unsubscribers.plays) {
+                unsubscribers.plays();
+                delete unsubscribers.plays;
+            }
             // Document doesn't exist (e.g., new week)
              callback({ data: BLANK_WEEK_DATA });
         }
@@ -341,7 +376,10 @@ export const saveGameStateToFirebase = (userId: string, weekId: string, gameStat
     // However, we include 'viewerPlayHistory' if it was passed in the gameState object (generated by Context).
     const { playHistory, ...metadata } = gameState;
     const cleanState = removeUndefinedValues(metadata);
-    return weekCollection(userId).doc(weekId).set(cleanState, { merge: true });
+    console.log("saveGameStateToFirebase:", { userId, weekId, cleanState });
+    return weekCollection(userId).doc(weekId).set(cleanState, { merge: true })
+        .then(() => console.log("saveGameStateToFirebase success"))
+        .catch(err => console.error("saveGameStateToFirebase error:", err));
 };
 
 // Functions to manage individual plays in the subcollection
