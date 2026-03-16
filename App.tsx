@@ -9,9 +9,10 @@ import ViewerContainer from './components/ViewerContainer';
 import AdminContainer from './components/AdminContainer';
 import SplashScreen from './components/SplashScreen';
 import { onAuthStateChanged, db, setUserRoleInDb, initializeNewUser } from './firebase';
-import { SpinnerIcon } from './components/icons';
+import { Icon, SpinnerIcon } from './components/icons';
 import { PlayType, GameStateContextType, AgeDivision } from './types';
 import TopHeader from './components/TopHeader';
+import LeaderboardView from './components/LeaderboardView';
 import WeekDashboard from './components/WeekDashboard';
 import Dashboard from './components/Dashboard';
 import DepthChart from './components/PlayerTable';
@@ -91,6 +92,17 @@ const App: React.FC = () => {
     const [marketingConsent, setMarketingConsent] = useState(false);
     const [initialEmail, setInitialEmail] = useState('');
     const [hasProceeded, setHasProceeded] = useState(false);
+    const [iconSheet, setIconSheet] = useState<string>('');
+    const [showPublicLeaderboard, setShowPublicLeaderboard] = useState(false);
+
+    // Load SVG icon sprite at the top level so it's available everywhere
+    useEffect(() => {
+        // @ts-ignore
+        fetch(`${import.meta.env.BASE_URL}assets/icons.svg`)
+            .then(res => res.text())
+            .then(setIconSheet)
+            .catch(err => console.error("Failed to load icons:", err));
+    }, []);
 
     // Use a ref to track the authPath so the onAuthStateChanged listener doesn't need to be re-bound.
     const authPathRef = useRef(authPath);
@@ -204,24 +216,45 @@ const App: React.FC = () => {
     
     // New pre-authentication flow
     if (!user) {
+        if (showPublicLeaderboard) {
+            return (
+                <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 sm:p-8">
+                    {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
+                    <div className="max-w-7xl mx-auto">
+                        <button 
+                            onClick={() => setShowPublicLeaderboard(false)}
+                            className="mb-6 flex items-center gap-2 text-[var(--text-secondary)] hover:text-white transition-colors"
+                        >
+                            <Icon name="arrow-left" className="w-5 h-5" />
+                            Back to Menu
+                        </button>
+                        <LeaderboardView />
+                    </div>
+                </div>
+            );
+        }
         if (authPath) {
             return <>
+                {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
                 <LoginScreen onBack={() => { setAuthPath(null); setInitialEmail(''); }} initialMode={initialAuthMode} initialEmail={initialEmail} />
                 <PreAuthFooter />
             </>;
         }
         return <>
-            <MainMenuScreen setAuthPath={handleSetAuthPath} />
+            {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
+            <MainMenuScreen setAuthPath={handleSetAuthPath} onShowLeaderboard={() => setShowPublicLeaderboard(true)} />
             <PreAuthFooter />
         </>;
     }
 
     // Authenticated user flow
     if (onboardingStep === 'role_selection') return <>
+        {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
         <RoleSelectionScreen onRoleSelect={handleRoleSelect} />
         <PreAuthFooter />
     </>;
     if (onboardingStep === 'welcome') return <>
+        {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
         <WelcomeScreen onTeamCreate={handleTeamCreate} />
         <PreAuthFooter />
     </>;
@@ -231,6 +264,7 @@ const App: React.FC = () => {
       return (
           <ErrorBoundary>
               <GameStateProvider user={user} initialShowWalkthrough={initialShowWalkthrough}>
+                  {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
                   <AppContent />
               </GameStateProvider>
           </ErrorBoundary>
@@ -238,28 +272,22 @@ const App: React.FC = () => {
     }
 
     if (userRole === 'viewer') {
-        return <ViewerContainer />;
+        return <>
+            {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
+            <ViewerContainer />
+        </>;
     }
 
     if (userRole === 'admin') {
-        return <AdminContainer user={user} />;
+        return <>
+            {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
+            <AdminContainer user={user} />
+        </>;
     }
 
     return null; // Should not be reached
 };
 
-
-const DynamicIconSpriteInjector: React.FC = () => {
-    const { customIconSheet, defaultIconSheet } = useGameState();
-    const svgContent = customIconSheet || defaultIconSheet;
-  
-    if (!svgContent) {
-      return null;
-    }
-  
-    // This div is hidden but makes the SVG symbols available to <use> tags throughout the app.
-    return <div dangerouslySetInnerHTML={{ __html: svgContent }} style={{ display: 'none' }} />;
-};
 
 const AppContent: React.FC = () => {
     const {
@@ -311,7 +339,6 @@ const AppContent: React.FC = () => {
 
     return (
         <div className={`font-sans min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-300 ${mainPaddingClass}`}>
-            <DynamicIconSpriteInjector />
             <TopHeader />
             <div className="w-full px-2 sm:px-4 py-4 pt-16">
                 
