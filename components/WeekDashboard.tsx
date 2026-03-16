@@ -311,24 +311,36 @@ const WeekDashboard: React.FC = () => {
         <div className="flex flex-col gap-4">
             <Scoreboard />
 
-            {/* Top Row: 3 items */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <SnapsRankingCard players={players} totalPlays={totalPlays} />
-                <FormationEfficiencyCard formationStats={displaySummaryData.formationStats} />
-                <TeamStatsComparisonCard 
-                    ourStats={ourStats} 
-                    opponentStats={opponentStats} 
-                    opponentName={opponentNames[selectedWeek]} 
-                    teamName={teamName} 
-                />
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4">
+                {/* Top Row: 3 items, each spanning 4 columns on large screens */}
+                <div className="sm:col-span-6 lg:col-span-4">
+                    <SnapsRankingCard players={players} totalPlays={totalPlays} />
+                </div>
+                <div className="sm:col-span-6 lg:col-span-4">
+                    <FormationEfficiencyCard formationStats={displaySummaryData.formationStats} />
+                </div>
+                <div className="sm:col-span-6 lg:col-span-4">
+                    <TeamStatsComparisonCard 
+                        ourStats={ourStats} 
+                        opponentStats={opponentStats} 
+                        opponentName={opponentNames[selectedWeek]} 
+                        teamName={teamName} 
+                    />
+                </div>
 
-            {/* Bottom Row: 4 items */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <PassingStatsCard topPerformers={displaySummaryData.topPerformers} playerMap={playerMap} />
-                <RushingStatsCard topPerformers={displaySummaryData.topPerformers} playerMap={playerMap} />
-                <ReceivingStatsCard topPerformers={displaySummaryData.topPerformers} playerMap={playerMap} />
-                <DefensiveStatsCard topPerformers={displaySummaryData.topPerformers} playerMap={playerMap} />
+                {/* Bottom Row: 4 items, each spanning 3 columns on large screens */}
+                <div className="sm:col-span-3 lg:col-span-3">
+                    <PassingStatsCard topPerformers={displaySummaryData.topPerformers} playerMap={playerMap} />
+                </div>
+                <div className="sm:col-span-3 lg:col-span-3">
+                    <RushingStatsCard topPerformers={displaySummaryData.topPerformers} playerMap={playerMap} />
+                </div>
+                <div className="sm:col-span-3 lg:col-span-3">
+                    <ReceivingStatsCard topPerformers={displaySummaryData.topPerformers} playerMap={playerMap} />
+                </div>
+                <div className="sm:col-span-3 lg:col-span-3">
+                    <DefensiveStatsCard topPerformers={displaySummaryData.topPerformers} playerMap={playerMap} />
+                </div>
             </div>
 
             <div className="w-full">

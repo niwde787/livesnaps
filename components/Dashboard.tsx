@@ -6,7 +6,6 @@ import WaveSubModal from './WaveSubModal';
 import { Player, FormationCollection, PlayType, PlayerStatus, SelectablePlayType } from '../types';
 import { useGameState } from '../contexts/GameStateContext';
 import { StarIcon } from './icons';
-import { OFFENSE_DISPLAY_GROUPS, DEFENSE_DISPLAY_GROUPS, ST_DISPLAY_GROUPS } from '../constants';
 
 const PLAY_TYPE_CONFIG = {
     [PlayType.Offense]: {
@@ -27,7 +26,7 @@ const Dashboard: React.FC = () => {
     const { 
         players, offenseFormations, defenseFormations, specialTeamsFormations,
         handleLineupConfirm, playHistory, currentLineups, handleUpdateLineup,
-        playbookTab, setPlaybookTab, selectedFormationName, setSelectedFormationName,
+        playbookTab, setPlaybookTab, selectedFormationName, handleSelectFormation,
         insertionIndex, handleCancelInsert, handleSetFormationAsDefault,
         depthChart,
         handleResetLineupToDefault,
@@ -52,12 +51,12 @@ const Dashboard: React.FC = () => {
         if (!formations[selectedFormationName]) {
             const firstFormationName = Object.keys(formations)[0];
             if (firstFormationName) {
-                setSelectedFormationName(firstFormationName);
+                handleSelectFormation(firstFormationName);
             } else {
-                setSelectedFormationName('');
+                handleSelectFormation('');
             }
         }
-    }, [formations, selectedFormationName, setSelectedFormationName]);
+    }, [formations, selectedFormationName, handleSelectFormation]);
 
     const formationData = useMemo(() => formations[selectedFormationName], [formations, selectedFormationName]);
     const formationPositions = useMemo(() => formationData?.positions || [], [formationData]);
@@ -68,82 +67,19 @@ const Dashboard: React.FC = () => {
             return;
         }
 
-        const getInitialLineupIds = () => {
-            // 1. Prioritize current lineup saved in the session state for in-game edits
-            if (currentLineups[selectedFormationName]) {
-                return currentLineups[selectedFormationName];
-            }
-            
-            // 2. Check for preset player IDs in the formation definition
-            if (formationData?.presetPlayerIds) {
-                return formationData.presetPlayerIds;
-            }
-    
-            // 3. Fallback for legacy preset jersey numbers
-            if (formationData?.presetPlayerJerseys) {
-                const jerseyToIdMap = new Map(players.map(p => [p.jerseyNumber, p.id]));
-                return formationData.presetPlayerJerseys.map(jersey => (jersey ? jerseyToIdMap.get(jersey) || null : null));
-            }
-
-            // 4. Build default lineup from the consolidated Depth Chart (Revised Logic)
-            const usedPlayerIds = new Set<string>();
-            const depthChartLineup = new Array(formationPositions.length).fill(null);
-            const allDisplayGroups = { ...OFFENSE_DISPLAY_GROUPS, ...DEFENSE_DISPLAY_GROUPS, ...ST_DISPLAY_GROUPS };
-
-            // Define a deterministic order for searching groups to ensure consistent lineup generation.
-            const groupPriority = [
-                ...Object.keys(OFFENSE_DISPLAY_GROUPS),
-                ...Object.keys(DEFENSE_DISPLAY_GROUPS),
-                ...Object.keys(ST_DISPLAY_GROUPS)
-            ];
-
-            // Tracks how many times a generic label like 'WR' has been filled to pick the next appropriate depth chart group (e.g., WR (X) -> WR (Z)).
-            const genericGroupUsageCounter: Record<string, number> = {};
-
-            formationPositions.forEach((position, index) => {
-                const posLabel = position.label.toUpperCase();
-                
-                // Find all potential depth chart groups that this position label could belong to, in a prioritized order.
-                const potentialGroups = groupPriority.filter(groupName => 
-                    allDisplayGroups[groupName].includes(posLabel)
-                );
-
-                if (potentialGroups.length === 0) {
-                    return; // No matching group for this position label, skip.
-                }
-
-                // Determine which specific group to try based on how many times we've already filled this label.
-                const groupIndexToTry = genericGroupUsageCounter[posLabel] || 0;
-                const groupNameToUse = potentialGroups[groupIndexToTry % potentialGroups.length];
-                
-                if (groupNameToUse && depthChart[groupNameToUse]) {
-                    // Find the first available player from this specific depth chart group.
-                    for (const playerId of depthChart[groupNameToUse]) {
-                        if (playerId && !usedPlayerIds.has(playerId) && playingPlayerIds.has(playerId)) {
-                            depthChartLineup[index] = playerId;
-                            usedPlayerIds.add(playerId);
-                            
-                            // Increment the usage counter for this generic position label.
-                            genericGroupUsageCounter[posLabel] = groupIndexToTry + 1;
-                            break; // Player found, move to the next formation position.
-                        }
-                    }
+        const currentLineup = currentLineups[selectedFormationName];
+        if (currentLineup) {
+            const finalIds = new Array(formationPositions.length).fill(null);
+            currentLineup.forEach((id, index) => {
+                if (index < finalIds.length) {
+                    finalIds[index] = id;
                 }
             });
-            
-            return depthChartLineup;
-        };
-    
-        const initialIds = getInitialLineupIds();
-        const finalIds = new Array(formationPositions.length).fill(null);
-        initialIds.forEach((id, index) => {
-            if (index < finalIds.length) {
-                finalIds[index] = id;
-            }
-        });
-
-        setLineupIds(finalIds);
-    }, [selectedFormationName, formationPositions, currentLineups, depthChart, players, formationData, playingPlayerIds, setSelectedFormationName]);
+            setLineupIds(finalIds);
+        } else {
+            setLineupIds(new Array(formationPositions.length).fill(null));
+        }
+    }, [selectedFormationName, formationPositions, currentLineups]);
 
     useEffect(() => {
       const playerMap = new Map(playingPlayers.map(p => [p.id, p]));
@@ -226,7 +162,7 @@ const Dashboard: React.FC = () => {
                 activeTab={playbookTab}
                 formations={formations}
                 selectedFormationName={selectedFormationName}
-                setSelectedFormationName={setSelectedFormationName}
+                setSelectedFormationName={handleSelectFormation}
                 assignments={assignments}
                 setAssignments={setAssignments}
                 onFieldPlayers={onFieldPlayers}
