@@ -34,7 +34,7 @@ const TeamPanel: React.FC<TeamPanelProps> = ({ teamName, teamAbbreviation, score
     const teamColorVar = isHome ? 'var(--accent-secondary)' : 'var(--accent-special)';
     
     return (
-        <div className={`flex-1 flex items-center bg-black/30 p-1 sm:p-2 rounded-lg gap-1 sm:gap-3 min-w-0 border-2 transition-all duration-300 ${hasPossession ? 'border-[var(--accent-primary)] shadow-[0_0_15px_rgba(0,230,118,0.5)]' : 'border-transparent'}`}>
+        <div className={`flex-1 flex items-center bg-[var(--bg-secondary)] p-1 sm:p-2 rounded-lg gap-1 sm:gap-3 min-w-0 border-2 transition-all duration-300 ${hasPossession ? 'border-[var(--accent-primary)] shadow-[0_0_15px_rgba(0,230,118,0.5)]' : 'border-transparent'}`}>
              <button onClick={onPossessionClick} className="p-1.5 rounded-full hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black/30 focus:ring-[var(--accent-primary)]" aria-label={`Set possession to ${teamName}`}>
                 <FootballIcon className={`w-6 h-auto sm:w-8 transition-colors ${hasPossession ? 'text-[var(--accent-primary)]' : 'text-[var(--text-secondary)]/70 hover:text-[var(--text-secondary)]'}`} />
             </button>

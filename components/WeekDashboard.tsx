@@ -27,7 +27,7 @@ export const SnapsRankingCard: React.FC<{ players: Player[]; totalPlays: number;
     }, [players, totalPlays]);
 
     return (
-        <div className="bg-[var(--bg-primary)] rounded-lg p-4 h-[248px] flex flex-col shadow-sm">
+        <div className="bg-[var(--bg-secondary)] rounded-lg p-4 h-[248px] flex flex-col shadow-sm">
             <h3 className="text-lg font-bold text-[var(--logo-color)] border-b border-[var(--border-primary)] pb-2 mb-3 flex-shrink-0">Snaps Ranking</h3>
             {rankedPlayers.length === 0 ? (
                 <div className="flex flex-col items-center justify-center flex-grow text-center text-[var(--text-secondary)]">
@@ -66,7 +66,7 @@ export const SnapsRankingCard: React.FC<{ players: Player[]; totalPlays: number;
 export const FormationEfficiencyCard: React.FC<{ formationStats: Record<string, FormationStats> }> = ({ formationStats }) => {
     const sortedFormations = (Object.entries(formationStats) as [string, FormationStats][]).sort(([, a], [, b]) => b.playCount - a.playCount);
     return (
-        <div className="bg-[var(--bg-primary)] rounded-lg p-4 h-[248px] flex flex-col shadow-sm">
+        <div className="bg-[var(--bg-secondary)] rounded-lg p-4 h-[248px] flex flex-col shadow-sm">
             <h3 className="text-lg font-bold text-[var(--logo-color)] border-b border-[var(--border-primary)] pb-2 mb-3 flex-shrink-0">Formation Efficiency</h3>
             {sortedFormations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center flex-grow text-center text-[var(--text-secondary)]">
@@ -157,7 +157,7 @@ export const TeamStatsComparisonCard: React.FC<{ ourStats: any; opponentStats: a
     };
 
     return (
-        <div className="bg-[var(--bg-primary)] rounded-lg p-4 h-[248px] shadow-sm flex flex-col">
+        <div className="bg-[var(--bg-secondary)] rounded-lg p-4 h-[248px] shadow-sm flex flex-col">
             <div className="flex justify-between items-baseline mb-3 border-b border-[var(--border-primary)] pb-2 flex-shrink-0">
                 <h3 className="text-lg font-bold text-[var(--logo-color)]">Team Comparison</h3>
                 <div className="flex gap-4 text-xs font-bold text-[var(--text-secondary)]">
@@ -199,7 +199,7 @@ const StatLeaderItem: React.FC<{ player: Player; value: number | string; subLabe
 );
 
 const StatCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-    <div className="bg-[var(--bg-primary)] rounded-lg p-4 h-[248px] flex flex-col shadow-sm">
+    <div className="bg-[var(--bg-secondary)] rounded-lg p-4 h-[248px] flex flex-col shadow-sm">
         <h3 className="text-lg font-bold text-[var(--text-primary)] border-b border-[var(--border-primary)] pb-2 mb-3 flex-shrink-0">{title}</h3>
         <div className="flex-grow overflow-y-auto -mr-2 pr-2 no-scrollbar">
             {children}
