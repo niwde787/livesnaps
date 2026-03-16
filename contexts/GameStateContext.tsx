@@ -4,7 +4,7 @@ import { Player, Play, PlayType, PlayerStatus, ActiveTab, FormationCollection, P
 // FIX: Remove StoredGameState from firebase import as it's now in types.ts.
 // FIX: Add markWalkthroughCompleted to firebase import.
 import { db, listenToGameState, saveGameStateToFirebase, listenToUserSettings, saveUserSettingsToFirebase, addPlayerToAllWeeks, updatePlayerInAllWeeks, updateRosterForAllWeeks, firestore, deletePlayerFromAllWeeks, saveSchedule, markWalkthroughCompleted, signOut, savePlay, deletePlay, resetPlaysForWeek } from '../firebase';
-import { GAME_DATA, WEEKLY_OPPONENTS, WEEKS, WEEKLY_HOME_AWAY, WEEK_DATES, WEEKLY_RESULTS, DEFAULT_PLAYER_IMAGE, BLANK_WEEK_DATA, OFFENSE_DISPLAY_GROUPS, DEFENSE_DISPLAY_GROUPS, ST_DISPLAY_GROUPS, LEAGUE_STANDINGS } from '../constants';
+import { GAME_DATA, WEEKLY_OPPONENTS, WEEKS, WEEKLY_HOME_AWAY, WEEK_DATES, WEEKLY_RESULTS, DEFAULT_PLAYER_IMAGE, BLANK_WEEK_DATA, OFFENSE_DISPLAY_GROUPS, DEFENSE_DISPLAY_GROUPS, ST_DISPLAY_GROUPS, LEAGUE_STANDINGS, DEFAULT_CUSTOM_THEME } from '../constants';
 import { calculateScoreAdjustments, getOrdinal, formatTime, parseGameTime, calculateDrives, deepCopy, getLastName, parseSimpleMarkdown } from '../utils';
 import { DEFAULT_OFFENSE_FORMATIONS, DEFAULT_DEFENSE_FORMATIONS, DEFAULT_SPECIAL_TEAMS_FORMATIONS } from '../defaultFormations';
 
@@ -12,8 +12,6 @@ const tabOrder: ActiveTab[] = ['overview', 'game', 'play-log', 'roster', 'format
 type SyncState = 'idle' | 'syncing' | 'synced' | 'offline';
 
 const DEFAULT_FIELD_LOGO = "https://raw.githubusercontent.com/niwde787/CJF/1f4df5f83d0fbb85bc6ea1ac8ed36765f518e995/SNAPS_H.svg";
-
-import { DEFAULT_CUSTOM_THEME } from '../constants';
 
 const getFormationsForType = (
     playType: PlayType,
@@ -289,7 +287,20 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
             setTeamCity(settings.teamCity || '');
             setCoachName(settings.coachName || '');
             setAgeDivision(settings.ageDivision || null);
-            setCustomTheme(settings.customTheme || DEFAULT_CUSTOM_THEME);
+            const loadedCustomTheme = settings.customTheme || {};
+            const isOldFormat = !loadedCustomTheme.bgPrimary && loadedCustomTheme.background;
+            
+            setCustomTheme({
+                bgPrimary: loadedCustomTheme.bgPrimary || loadedCustomTheme.background || DEFAULT_CUSTOM_THEME.bgPrimary,
+                bgSecondary: loadedCustomTheme.bgSecondary || (isOldFormat ? loadedCustomTheme.background : DEFAULT_CUSTOM_THEME.bgSecondary),
+                textPrimary: loadedCustomTheme.textPrimary || DEFAULT_CUSTOM_THEME.textPrimary,
+                textSecondary: loadedCustomTheme.textSecondary || DEFAULT_CUSTOM_THEME.textSecondary,
+                borderPrimary: loadedCustomTheme.borderPrimary || (isOldFormat ? loadedCustomTheme.textSecondary : DEFAULT_CUSTOM_THEME.borderPrimary),
+                accentPrimary: loadedCustomTheme.accentPrimary || loadedCustomTheme.primary || DEFAULT_CUSTOM_THEME.accentPrimary,
+                accentSecondary: loadedCustomTheme.accentSecondary || loadedCustomTheme.secondary || DEFAULT_CUSTOM_THEME.accentSecondary,
+                accentDefense: loadedCustomTheme.accentDefense || (isOldFormat ? loadedCustomTheme.secondary : DEFAULT_CUSTOM_THEME.accentDefense),
+                accentSpecial: loadedCustomTheme.accentSpecial || loadedCustomTheme.tertiary || DEFAULT_CUSTOM_THEME.accentSpecial,
+            });
             setCustomIconSheet(settings.customIconSheet || null);
 
             const userFormations = settings.formations || {};
