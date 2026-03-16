@@ -13,17 +13,7 @@ type SyncState = 'idle' | 'syncing' | 'synced' | 'offline';
 
 const DEFAULT_FIELD_LOGO = "https://raw.githubusercontent.com/niwde787/CJF/1f4df5f83d0fbb85bc6ea1ac8ed36765f518e995/SNAPS_H.svg";
 
-const DEFAULT_CUSTOM_THEME: CustomTheme = {
-  bgPrimary: '#111827',
-  bgSecondary: '#1F2937',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  borderPrimary: '#4B5563',
-  accentPrimary: '#3B82F6',
-  accentSecondary: '#10B981',
-  accentDefense: '#EF4444',
-  accentSpecial: '#A855F7',
-};
+import { DEFAULT_CUSTOM_THEME } from '../constants';
 
 const getFormationsForType = (
     playType: PlayType,
