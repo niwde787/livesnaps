@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { SpinnerIcon } from './icons';
 import { PlayerStatus } from '../types';
 import { normalizePosition } from '../utils';
@@ -100,34 +101,46 @@ const RosterImportModal: React.FC<RosterImportModalProps> = ({ onClose, onImport
         }
     }, [file, onImport, onClose]);
 
+    const modalRoot = document.getElementById('modal-root') || document.body;
 
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50 p-4" onClick={onClose}>
-            <div className="glass-effect rounded-lg shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
-                <header className="p-4 border-b border-[var(--border-primary)] flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-[var(--text-primary)]">Import Roster</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-[var(--text-primary)]" aria-label="Close">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+    return ReactDOM.createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4" onClick={onClose}>
+            <div className="glass-effect rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                <header className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+                    <h2 className="text-lg font-bold text-white">Import Roster</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors" aria-label="Close">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </header>
-                <main className="p-6 space-y-4">
-                    <p className="text-sm text-[var(--text-secondary)]">Import players from an Excel (.xlsx, .xls) or CSV file. The file should have columns: 'Jersey Number', 'First Name', 'Last Name', 'Position', and 'Status'. The 'Position' column is optional and can be left blank. Multiple positions can be added, separated by a comma (e.g., "QB,WR"). Players with matching names or jersey numbers will be updated; new players will be added.</p>
-                    <button onClick={handleDownloadTemplate} className="w-full justify-center flex items-center gap-2 px-4 py-2 bg-[var(--bg-secondary)] text-[var(--text-primary)] font-semibold rounded-lg hover:bg-[var(--border-primary)]">Download Template</button>
-                    <div>
-                        <label htmlFor="roster-file-upload" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Upload File</label>
-                        <input id="roster-file-upload" type="file" onChange={handleFileChange} accept=".xlsx, .xls, .csv" className="block w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[var(--bg-tertiary)] file:text-[var(--text-primary)] hover:file:bg-[var(--border-primary)]" />
+                <main className="p-5 space-y-5 max-h-[75vh] overflow-y-auto custom-scrollbar">
+                    <p className="text-xs text-gray-400 leading-relaxed">Import players from an Excel (.xlsx, .xls) or CSV file. The file should have columns: 'Jersey Number', 'First Name', 'Last Name', 'Position', and 'Status'.</p>
+                    
+                    <button onClick={handleDownloadTemplate} className="w-full justify-center flex items-center gap-2 px-4 py-3 bg-white/5 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg hover:bg-white/10 transition-colors border border-white/5">
+                        Download Template
+                    </button>
+
+                    <div className="space-y-2">
+                        <label htmlFor="roster-file-upload" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">Upload File</label>
+                        <div className="relative">
+                            <input id="roster-file-upload" type="file" onChange={handleFileChange} accept=".xlsx, .xls, .csv" className="block w-full text-[11px] text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-bold file:bg-[var(--accent-primary)] file:text-white hover:file:bg-[var(--accent-primary-hover)] file:transition-colors file:cursor-pointer" />
+                        </div>
                     </div>
-                    {error && <div className="p-3 text-sm text-red-400 bg-red-900/40 rounded-lg" role="alert">{error}</div>}
+
+                    {error && (
+                        <div className="p-3 text-[11px] text-red-400 bg-red-900/20 border border-red-500/20 rounded-lg font-medium" role="alert">
+                            {error}
+                        </div>
+                    )}
                 </main>
-                <footer className="p-4 border-t border-[var(--border-primary)] flex justify-end space-x-4">
-                    <button onClick={onClose} className="px-6 py-2 bg-[var(--bg-secondary)] text-[var(--text-primary)] font-semibold rounded-lg hover:bg-[var(--border-primary)]">Cancel</button>
-                    <button onClick={handleProcessFile} disabled={!file || isLoading} className="flex items-center justify-center gap-2 px-6 py-2 bg-[var(--accent-primary)] text-white font-bold rounded-lg hover:bg-[var(--accent-primary-hover)] disabled:bg-gray-500">
-                        {isLoading && <SpinnerIcon className="w-5 h-5" />}
-                        {isLoading ? 'Importing...' : 'Import & Merge'}
+                <footer className="p-4 border-t border-white/10 flex justify-end gap-2 bg-white/5">
+                    <button onClick={onClose} className="px-4 py-2 bg-white/5 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg hover:bg-white/10 transition-colors">Cancel</button>
+                    <button onClick={handleProcessFile} disabled={!file || isLoading} className="flex items-center justify-center gap-2 min-w-[120px] px-4 py-2 bg-[var(--accent-primary)] text-white text-[10px] font-bold uppercase tracking-wider rounded-lg hover:bg-[var(--accent-primary-hover)] transition-all shadow-lg shadow-blue-500/20 disabled:opacity-50">
+                        {isLoading ? <SpinnerIcon className="w-4 h-4" /> : 'Import & Merge'}
                     </button>
                 </footer>
             </div>
-        </div>
+        </div>,
+        modalRoot
     );
 };
 
