@@ -37,6 +37,75 @@ export const formatPosition = (pos: string | undefined): string => {
     return pos.split(',').map(p => p.trim().toUpperCase()).join(', ');
 };
 
+export const normalizePosition = (pos: string): string => {
+    const upperPos = pos.toUpperCase().trim();
+    const normalizedSearch = upperPos.replace(/\s+/g, '');
+    
+    // Common abbreviations mapping
+    const abbreviations: Record<string, string> = {
+        'Q': 'QB',
+        'TB': 'RB',  // Tailback
+        'HB': 'RB',  // Halfback
+        'B': 'FB',   // Back/Fullback
+        'K': 'K',
+        'P': 'P',
+        'S': 'S',
+        'C': 'C',
+        'G': 'G',
+        'DE': 'DE',
+        'DT': 'DT',
+        'LB': 'LB',
+        'CB': 'CB',
+        'UB': 'BLOCK',
+        'L': 'BLOCK',
+        'W': 'WING',
+        'GNR': 'GNR',
+        'H': 'A',
+        'LW': 'WING',
+        'RW': 'WING',
+        'PP': 'BLOCK',
+        // Sub-positions to base positions
+        'LT': 'T',
+        'RT': 'T',
+        'LG': 'G',
+        'RG': 'G',
+        'X': 'WR',
+        'Z': 'WR',
+        'Y': 'TE',
+        'LTE': 'TE',
+        'RTE': 'TE',
+        'LDE': 'DE',
+        'RDE': 'DE',
+        'NT': 'DT',
+        'WLB': 'LB',
+        'MLB': 'LB',
+        'SLB': 'LB',
+        'ILB': 'LB',
+        'OLB': 'LB',
+        'LCB': 'CB',
+        'RCB': 'CB',
+        'FS': 'S',
+        'SS': 'S',
+    };
+
+    if (abbreviations[upperPos]) return abbreviations[upperPos];
+    
+    // Check if it's already a code
+    if (POSITION_FULL_NAMES[upperPos]) return upperPos;
+    
+    // Check if it's a full name (normalized)
+    for (const [code, fullName] of Object.entries(POSITION_FULL_NAMES)) {
+        const normalizedFullName = fullName.toUpperCase().replace(/\s+/g, '');
+        // Handle cases like "H-Back / Holder" by splitting and checking each
+        const fullNameParts = normalizedFullName.split(/[/]+/).map(s => s.trim());
+        if (fullNameParts.some(part => part === normalizedSearch) || normalizedFullName === normalizedSearch) {
+            return code;
+        }
+    }
+    
+    return upperPos;
+};
+
 export const parseGameTime = (timeStr?: string): number => {
     if (!timeStr) return 0;
     const parts = timeStr.split(':').map(Number);

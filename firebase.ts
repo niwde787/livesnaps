@@ -75,6 +75,11 @@ export const signOut = () => {
     return auth.signOut();
 };
 
+export const signInWithGoogle = () => {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    return auth.signInWithPopup(provider);
+};
+
 export const setUserRoleInDb = (userId: string, role: 'coach' | 'viewer' | 'admin', email: string, marketingConsent?: boolean) => {
     const userDocRef = usersCollection().doc(userId);
     const dataToSet: { [key: string]: any } = { 
@@ -176,7 +181,7 @@ export const saveInitialRoster = (userId: string, seasonWeeks: string[], players
 
     seasonWeeks.forEach(weekId => {
         const weekDocRef = usersCollection().doc(userId).collection('weeks').doc(weekId);
-        batch.update(weekDocRef, { players: cleanPlayers });
+        batch.set(weekDocRef, { players: cleanPlayers }, { merge: true });
     });
 
     // Mark the roster setup step as completed for this user.
@@ -185,21 +190,26 @@ export const saveInitialRoster = (userId: string, seasonWeeks: string[], players
     return batch.commit();
 };
 
-export const addPlayerToAllWeeks = (userId: string, seasonWeeks: string[], newPlayer: Player, depthChart?: Record<string, string[]>) => {
+export const addPlayerToAllWeeks = (userId: string, seasonWeeks: string[], newPlayer: Player) => {
     const cleanPlayer = removeUndefinedValues(newPlayer);
     const batch = db.batch();
     seasonWeeks.forEach(weekId => {
         const weekDocRef = usersCollection().doc(userId).collection('weeks').doc(weekId);
-        const updates: any = {
+        batch.set(weekDocRef, {
             players: firebase.firestore.FieldValue.arrayUnion(cleanPlayer)
-        };
-        if (depthChart) updates.depthChart = removeUndefinedValues(depthChart);
-        batch.update(weekDocRef, updates);
+        }, { merge: true });
     });
+
+    // Also update the main user document to keep the global roster in sync
+    const userDocRef = usersCollection().doc(userId);
+    batch.set(userDocRef, {
+        players: firebase.firestore.FieldValue.arrayUnion(cleanPlayer)
+    }, { merge: true });
+
     return batch.commit();
 };
 
-export const updatePlayerInAllWeeks = async (userId: string, seasonWeeks: string[], playerId: string, updates: Partial<Player>, depthChart?: Record<string, string[]>) => {
+export const updatePlayerInAllWeeks = async (userId: string, seasonWeeks: string[], playerId: string, updates: Partial<Player>) => {
     const batch = db.batch();
     for (const weekId of seasonWeeks) {
         const weekDocRef = usersCollection().doc(userId).collection('weeks').doc(weekId);
@@ -213,28 +223,42 @@ export const updatePlayerInAllWeeks = async (userId: string, seasonWeeks: string
                 }
                 return p;
             });
-            const updatePayload: any = { players: updatedPlayers };
-            if (depthChart) updatePayload.depthChart = removeUndefinedValues(depthChart);
-            batch.update(weekDocRef, updatePayload);
+            batch.update(weekDocRef, { players: updatedPlayers });
         }
     }
+
+    // Also update the main user document
+    const userDocRef = usersCollection().doc(userId);
+    const userDoc = await userDocRef.get();
+    if (userDoc.exists) {
+        const players = userDoc.data().players as Player[] || [];
+        const updatedPlayers = players.map(p => {
+            if (p.id === playerId) {
+                return Object.assign({}, p, updates);
+            }
+            return p;
+        });
+        batch.update(userDocRef, { players: updatedPlayers });
+    }
+
     return batch.commit();
 };
 
-export const updateRosterForAllWeeks = (userId: string, seasonWeeks: string[], newPlayerList: Player[], depthChart?: Record<string, string[]>, currentLineups?: Record<string, (string | null)[]>) => {
+export const updateRosterForAllWeeks = (userId: string, seasonWeeks: string[], newPlayerList: Player[]) => {
     console.log("updateRosterForAllWeeks:", { userId, seasonWeeks, newPlayerListLength: newPlayerList.length });
     const cleanPlayerList = removeUndefinedValues(newPlayerList);
     const batch = db.batch();
     
-    const updates: any = { players: cleanPlayerList };
-    if (depthChart) updates.depthChart = removeUndefinedValues(depthChart);
-    if (currentLineups) updates.currentLineups = removeUndefinedValues(currentLineups);
-
     seasonWeeks.forEach(weekId => {
         const weekDocRef = usersCollection().doc(userId).collection('weeks').doc(weekId);
-        console.log("updateRosterForAllWeeks batch.update:", weekDocRef.path);
-        batch.update(weekDocRef, updates);
+        // Use set with merge: true to ensure document creation
+        batch.set(weekDocRef, { players: cleanPlayerList }, { merge: true });
     });
+
+    // Also update the main user document
+    const userDocRef = usersCollection().doc(userId);
+    batch.set(userDocRef, { players: cleanPlayerList }, { merge: true });
+
     return batch.commit()
         .then(() => console.log("updateRosterForAllWeeks success"))
         .catch(err => console.error("updateRosterForAllWeeks error:", err));
@@ -281,6 +305,16 @@ export const deletePlayerFromAllWeeks = async (userId: string, seasonWeeks: stri
             batch.update(weekDocRef, updates);
         }
     }
+
+    // Also update the main user document
+    const userDocRef = usersCollection().doc(userId);
+    const userDoc = await userDocRef.get();
+    if (userDoc.exists) {
+        const players = userDoc.data().players as Player[] || [];
+        const updatedPlayers = players.filter(p => p.id !== playerId);
+        batch.update(userDocRef, { players: updatedPlayers });
+    }
+
     return batch.commit();
 };
 

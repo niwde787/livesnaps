@@ -130,15 +130,15 @@ export const POSITION_GROUPS = {
 export const ALL_POSITION_OPTIONS = [
     {
         group: 'Offense',
-        positions: ['QB', 'RB', 'FB', 'WR', 'X', 'Z', 'TE', 'Y', 'LTE', 'RTE', 'LT', 'LG', 'C', 'RG', 'RT', 'A', 'H', 'LW', 'RW', 'WING', 'PP']
+        positions: ['QB', 'RB', 'FB', 'WR', 'TE', 'T', 'G', 'C', 'LT', 'LG', 'RG', 'RT', 'X', 'Z', 'Y', 'A', 'H', 'WING', 'BLOCK']
     },
     {
         group: 'Defense',
-        positions: ['LDE', 'RDE', 'DT', 'NT', 'WLB', 'MLB', 'MB', 'SLB', 'LCB', 'RCB', 'FS', 'SS']
+        positions: ['DE', 'DT', 'LB', 'CB', 'S', 'LDE', 'RDE', 'NT', 'WLB', 'MLB', 'SLB', 'LCB', 'RCB', 'FS', 'SS']
     },
     {
         group: 'Specialists',
-        positions: ['K', 'P', 'LS', 'H', 'KR', 'PR', 'BLOCK', 'RUSH', 'JAM']
+        positions: ['K', 'P', 'LS', 'H', 'KR', 'PR', 'GNR', 'BLOCK', 'RUSH', 'JAM']
     }
 ];
 
@@ -147,30 +147,30 @@ export const OFFENSE_DISPLAY_GROUPS = {
     'QB': ['QB'], 
     'RB': ['RB'],
     'FB': ['FB'],
-    'A-Back': ['A', 'H', 'RB', 'WR', 'LW', 'RW', 'WING', 'PP'], // Versatile athlete/slotback
-    'WR (X)': ['WR', 'X'], // Split End
-    'WR (Z)': ['WR', 'Z'], // Flanker
+    'A-Back': ['A', 'RB', 'WR', 'WING', 'BLOCK'], // Versatile athlete/slotback
+    'WR (X)': ['WR'], // Split End
+    'WR (Z)': ['WR'], // Flanker
     'WR (Slot)': ['WR'], // Slot Receiver
-    'TE (Y)': ['TE', 'Y', 'LTE', 'RTE'], // In-line Tight End
-    'LT': ['LT', 'T'], 
-    'LG': ['LG', 'G'], 
+    'TE (Y)': ['TE'], // In-line Tight End
+    'LT': ['T'], 
+    'LG': ['G'], 
     'C': ['C'],
-    'RG': ['RG', 'G'], 
-    'RT': ['RT', 'T'], 
+    'RG': ['G'], 
+    'RT': ['T'], 
 };
 
 export const DEFENSE_DISPLAY_GROUPS = { 
-    'LDE': ['LDE', 'DE'],      // Left Defensive End
-    'RDE': ['RDE', 'DE'],      // Right Defensive End
-    'NT': ['NT', 'DT', 'DL'],  // Nose Tackle (3-4)
-    'DT': ['DT', 'DL'],        // Defensive Tackle (4-3)
-    'WLB': ['WLB', 'OLB', 'LB'], // Will - Weakside Linebacker
-    'MLB': ['MLB', 'MB', 'ILB', 'LB'], // Mike - Middle Linebacker
-    'SLB': ['SLB', 'OLB', 'LB'], // Sam - Strongside Linebacker
-    'LCB': ['LCB', 'CB', 'DB'], // Left Cornerback
-    'RCB': ['RCB', 'CB', 'DB'], // Right Cornerback
-    'FS': ['FS', 'S', 'DB'],     // Free Safety
-    'SS': ['SS', 'S', 'DB'],     // Strong Safety
+    'LDE': ['DE'],      // Left Defensive End
+    'RDE': ['DE'],      // Right Defensive End
+    'NT': ['DT'],       // Nose Tackle (3-4)
+    'DT': ['DT'],       // Defensive Tackle (4-3)
+    'WLB': ['LB'],      // Will - Weakside Linebacker
+    'MLB': ['LB'],      // Mike - Middle Linebacker
+    'SLB': ['LB'],      // Sam - Strongside Linebacker
+    'LCB': ['CB'],      // Left Cornerback
+    'RCB': ['CB'],      // Right Cornerback
+    'FS': ['S'],        // Free Safety
+    'SS': ['S'],        // Strong Safety
 };
 
 export const ST_DISPLAY_GROUPS = { 
