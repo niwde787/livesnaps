@@ -5,7 +5,7 @@ import { Player, Play, PlayType, PlayerStatus, ActiveTab, FormationCollection, P
 // FIX: Add markWalkthroughCompleted to firebase import.
 import { db, listenToGameState, saveGameStateToFirebase, listenToUserSettings, saveUserSettingsToFirebase, addPlayerToAllWeeks, updatePlayerInAllWeeks, updateRosterForAllWeeks, firestore, deletePlayerFromAllWeeks, saveSchedule, markWalkthroughCompleted, signOut, savePlay, deletePlay, resetPlaysForWeek, createWeekDoc } from '../firebase';
 import { GAME_DATA, WEEKLY_OPPONENTS, WEEKS, WEEKLY_HOME_AWAY, WEEK_DATES, WEEKLY_RESULTS, DEFAULT_PLAYER_IMAGE, BLANK_WEEK_DATA, OFFENSE_DISPLAY_GROUPS, DEFENSE_DISPLAY_GROUPS, ST_DISPLAY_GROUPS, LEAGUE_STANDINGS } from '../constants';
-import { calculateScoreAdjustments, getOrdinal, formatTime, parseGameTime, calculateDrives, deepCopy, getLastName, parseSimpleMarkdown } from '../utils';
+import { calculateScoreAdjustments, getOrdinal, formatTime, parseGameTime, calculateDrives, deepCopy, getLastName, parseSimpleMarkdown, normalizePosition } from '../utils';
 import { DEFAULT_OFFENSE_FORMATIONS, DEFAULT_DEFENSE_FORMATIONS, DEFAULT_SPECIAL_TEAMS_FORMATIONS } from '../defaultFormations';
 
 import { useGameClock } from './GameClockContext';
@@ -1717,7 +1717,7 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
     const getUpdatedDepthChart = useCallback((currentDepthChart: Record<string, string[]>, player: Player, action: 'add' | 'remove' | 'update') => {
         const newDepthChart = { ...currentDepthChart };
         const allDisplayGroups = { ...OFFENSE_DISPLAY_GROUPS, ...DEFENSE_DISPLAY_GROUPS, ...ST_DISPLAY_GROUPS };
-        const playerPositions = player.position.toUpperCase().split(/[,/ ]+/).map(p => p.trim());
+        const playerPositions = player.position.split(/[,/]+/).map(p => normalizePosition(p));
 
         Object.keys(allDisplayGroups).forEach(group => {
             const positionsInGroup = allDisplayGroups[group as keyof typeof allDisplayGroups];
@@ -1780,34 +1780,62 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
 
         formationPositions.forEach((position, index) => {
             const posLabel = position.label.toUpperCase();
+            const normalizedPosLabel = normalizePosition(posLabel);
             
+            // Prioritize groups that are more specific to the position label
             const potentialGroups = groupPriority.filter(groupName => 
-                allDisplayGroups[groupName as keyof typeof allDisplayGroups].includes(posLabel)
-            );
+                allDisplayGroups[groupName as keyof typeof allDisplayGroups].includes(normalizedPosLabel)
+            ).sort((a, b) => {
+                // Exact match or primary position group gets priority
+                const aExact = a.toUpperCase() === normalizedPosLabel || a.toUpperCase().startsWith(normalizedPosLabel);
+                const bExact = b.toUpperCase() === normalizedPosLabel || b.toUpperCase().startsWith(normalizedPosLabel);
+                if (aExact && !bExact) return -1;
+                if (!aExact && bExact) return 1;
+                return 0;
+            });
 
             if (potentialGroups.length === 0) return;
 
-            const groupIndexToTry = genericGroupUsageCounter[posLabel] || 0;
-            const groupNameToUse = potentialGroups[groupIndexToTry % potentialGroups.length];
-            
-            if (groupNameToUse && depthChart[groupNameToUse]) {
-                for (const playerId of depthChart[groupNameToUse]) {
-                    if (playerId && !usedPlayerIds.has(playerId) && playingPlayerIds.has(playerId)) {
-                        depthChartLineup[index] = playerId;
-                        usedPlayerIds.add(playerId);
-                        genericGroupUsageCounter[posLabel] = groupIndexToTry + 1;
-                        break;
+            // Try to find a player from the potential groups
+            for (const groupName of potentialGroups) {
+                if (depthChart[groupName]) {
+                    for (const playerId of depthChart[groupName]) {
+                        if (playerId && !usedPlayerIds.has(playerId) && playingPlayerIds.has(playerId)) {
+                            // Additional check: Does the player actually have this position?
+                            const player = players.find(p => p.id === playerId);
+                            if (player) {
+                                const playerPos = player.position.toUpperCase();
+                                
+                                // If the position label is specific (like QB, RB, WR), ensure the player has it
+                                const specificPositions = ['QB', 'RB', 'FB', 'WR', 'TE', 'T', 'G', 'C', 'DE', 'DT', 'LB', 'CB', 'S', 'K', 'P', 'LS', 'KR', 'PR', 'GNR', 'BLOCK', 'WING'];
+                                if (specificPositions.includes(normalizedPosLabel)) {
+                                    const playerPositions = playerPos.split(/[,/]+/).map(p => normalizePosition(p.trim()));
+                                    if (!playerPositions.includes(normalizedPosLabel)) continue;
+                                }
+                            }
+
+                            depthChartLineup[index] = playerId;
+                            usedPlayerIds.add(playerId);
+                            break;
+                        }
                     }
                 }
+                if (depthChartLineup[index]) break;
             }
         });
 
         return depthChartLineup;
     }, [offenseFormations, defenseFormations, specialTeamsFormations, players, depthChart]);
 
+    const handleUpdateLineup = useCallback((formationName: string, lineup: (string | null)[], playType: PlayType) => {
+// FIX: Replace spread syntax with Object.assign for wider compatibility.
+        setCurrentLineups(prev => Object.assign({}, prev, { [formationName]: lineup }));
+    }, []);
+
     const handleSelectFormation = useCallback((name: string) => {
         setSelectedFormationName(name);
-        if (name && !currentLineups[name]) {
+        // If we have no lineup for this formation, or it's completely empty, try to generate a default one
+        if (name && (!currentLineups[name] || currentLineups[name].every(id => id === null))) {
             const defaultLineup = getDefaultLineupForFormation(name, playbookTab);
             if (defaultLineup.some(id => id !== null)) {
                 handleUpdateLineup(name, defaultLineup, playbookTab);
@@ -1819,6 +1847,10 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
         setSyncState('syncing');
         const originalPlayers = players;
         const originalDepthChart = depthChart;
+
+        if (updates.position !== undefined) {
+            updates.position = updates.position.split(/[,/]+/).map(p => normalizePosition(p)).join(', ');
+        }
         
         const updatedPlayers = players.map(p => p.id === playerId ? Object.assign({}, p, updates) : p);
         const updatedPlayer = updatedPlayers.find(p => p.id === playerId);
@@ -1863,9 +1895,11 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
     }, [user, seasonWeeks, showToast, players, depthChart, removePlayerFromDepthChart]);
 
     const handleAddPlayer = async (player: { jerseyNumber: number; name: string; position: string; status: PlayerStatus }) => {
+        const normalizedPosition = player.position.split(/[,/]+/).map(p => normalizePosition(p)).join(', ');
         const newId = (players.length > 0 ? Math.max(...players.map(p => parseInt(p.id, 10))) : 0) + 1;
         const newPlayer: Player = Object.assign({}, player, {
             id: newId.toString(),
+            position: normalizedPosition,
             offensePlayCount: 0,
             defensePlayCount: 0,
             specialTeamsPlayCount: 0,
@@ -1904,17 +1938,18 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
         let addedCount = 0;
 
         for (const imp of importedPlayers) {
+            const normalizedPos = imp.position.split(/[,/]+/).map(p => normalizePosition(p)).join(', ');
             const existingPlayerIndex = updatedPlayers.findIndex(p => p.name.toLowerCase() === imp.name.toLowerCase() || p.jerseyNumber === imp.jerseyNumber);
             let playerToProcess: Player;
 
             if (existingPlayerIndex > -1) {
                 const existingPlayer = updatedPlayers[existingPlayerIndex];
-                updatedPlayers[existingPlayerIndex] = Object.assign({}, existingPlayer, { jerseyNumber: imp.jerseyNumber, position: imp.position, status: imp.status, imageUrl: existingPlayer.imageUrl || DEFAULT_PLAYER_IMAGE });
+                updatedPlayers[existingPlayerIndex] = Object.assign({}, existingPlayer, { jerseyNumber: imp.jerseyNumber, position: normalizedPos, status: imp.status, imageUrl: existingPlayer.imageUrl || DEFAULT_PLAYER_IMAGE });
                 playerToProcess = updatedPlayers[existingPlayerIndex];
                 updatedCount++;
             } else {
                 const newId = (Math.max(0, ...updatedPlayers.map(p => parseInt(p.id))) || 0) + 1;
-                const newPlayer: Player = { id: newId.toString(), jerseyNumber: imp.jerseyNumber, name: imp.name, position: imp.position, status: imp.status, offensePlayCount: 0, defensePlayCount: 0, specialTeamsPlayCount: 0, timeOnField: 0, imageUrl: DEFAULT_PLAYER_IMAGE };
+                const newPlayer: Player = { id: newId.toString(), jerseyNumber: imp.jerseyNumber, name: imp.name, position: normalizedPos, status: imp.status, offensePlayCount: 0, defensePlayCount: 0, specialTeamsPlayCount: 0, timeOnField: 0, imageUrl: DEFAULT_PLAYER_IMAGE };
                 updatedPlayers.push(newPlayer);
                 playerToProcess = newPlayer;
                 addedCount++;
@@ -1952,11 +1987,6 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
         setIsPlayDetailsModalOpen(true);
     }, [offenseFormations, defenseFormations, specialTeamsFormations]);
     
-    const handleUpdateLineup = useCallback((formationName: string, lineup: (string | null)[], playType: PlayType) => {
-// FIX: Replace spread syntax with Object.assign for wider compatibility.
-        setCurrentLineups(prev => Object.assign({}, prev, { [formationName]: lineup }));
-    }, []);
-
     const handleResetLineupToDefault = useCallback((formationName: string) => {
         setCurrentLineups(prev => {
             const newCurrentLineups = { ...prev };
@@ -2477,7 +2507,7 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
 
         Object.keys(allDisplayGroups).forEach(group => {
             const positionsInGroup = allDisplayGroups[group as keyof typeof allDisplayGroups];
-            const playerPositions = player.position.toUpperCase().split(',').map(p => p.trim());
+            const playerPositions = player.position.split(/[,/]+/).map(p => normalizePosition(p));
             const isMatch = playerPositions.some(pPos => positionsInGroup.includes(pPos));
             
             if (isMatch) {
@@ -2513,6 +2543,30 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
             [group]: playerIds
         }));
     }, []);
+
+    const handleRebuildDepthChart = useCallback(() => {
+        if (players.length === 0) return;
+        
+        let newDepthChart: Record<string, string[]> = {};
+        players.forEach(player => {
+            newDepthChart = getUpdatedDepthChart(newDepthChart, player, 'add');
+        });
+        
+        setDepthChart(newDepthChart);
+        showToast('Depth chart rebuilt from roster.', 'success');
+    }, [players, getUpdatedDepthChart, showToast]);
+
+    // Auto-populate depth chart if it's empty but players exist
+    useEffect(() => {
+        if (!isWeekLoading && players.length > 0 && Object.keys(depthChart).length === 0) {
+            console.log("Auto-populating empty depth chart...");
+            let newDepthChart: Record<string, string[]> = {};
+            players.forEach(player => {
+                newDepthChart = getUpdatedDepthChart(newDepthChart, player, 'add');
+            });
+            setDepthChart(newDepthChart);
+        }
+    }, [isWeekLoading, players, depthChart, getUpdatedDepthChart]);
 
     // ... other handlers
     const handleAddNewEvent = () => {
@@ -2715,10 +2769,25 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
         opponentNames, selectedWeek, downAndDistance, isWeekLoading
     };
 
+    // Auto-populate depth chart if it's empty but we have players with positions
+    useEffect(() => {
+        if (players.length > 0 && !isWeekLoading && Object.keys(depthChart).length === 0) {
+            const hasPositions = players.some(p => p.position && p.position.trim() !== '');
+            if (hasPositions) {
+                console.log('Auto-populating empty depth chart from roster positions');
+                let newDepthChart: Record<string, string[]> = {};
+                players.forEach(p => {
+                    newDepthChart = getUpdatedDepthChart(newDepthChart, p, 'add');
+                });
+                setDepthChart(newDepthChart);
+            }
+        }
+    }, [players, isWeekLoading, depthChart, getUpdatedDepthChart]);
+
     const contextValue = useMemo(() => ({
-        isResettingFormations, handleResetAllFormations, isCheckingForUpdate, handleCheckForUpdate, isGeneratingDemo, handleLoadDemoData, isSigningOut, handleSignOut, handleClearCacheAndSignOut, user, syncState, selectedWeek, seasonWeeks, players: playersWithCalculatedStats, playHistory, undoStack, redoStack, currentLineups, offenseFormations, defenseFormations, specialTeamsFormations, depthChart, activeTab, playbookTab, selectedFormationName, animationClass, isSummaryModalOpen, isReportsModalOpen, isExportingPdf, gameSummaryData, isQuarterSummaryModalOpen, quarterSummaryData, quarterPlaysForSummary, isImportModalOpen, initialImportTab, isSettingsModalOpen, isAddEventModalOpen, editingPlayIndex, editingFormation, editingEventWeek, isPlayDetailsModalOpen, tempPlayData, theme, toast, isWeekLoading, fieldLogoUrl, isWeekSelectorModalOpen, navBarPosition, opponentNames, opponentCities, homeAwayStatus, weekDates, weekResults, ourScore, opponentScore, currentQuarter, homeTimeouts, awayTimeouts, possession, homeStatus, insertionIndex, scrollToPlayIndex, ourStats, opponentStats, nextPlayState, isCoinTossModalOpen, isFourthDownModalOpen, showWalkthrough, aiSummary, teamName, teamCity, coachName, ageDivision, customTheme, seasonRecord, customIconSheet, defaultIconSheet, gameTime, isClockRunning, getGameTime, setGameTime, setIsClockRunning, handleSaveCustomIconSheet, setAiSummary, handleCompleteWalkthrough, setScrollToPlayIndex, handleInitiateInsert, handleCancelInsert, handleThemeChange, showToast, handleNavBarPositionChange, mainPaddingClass, handleWeekChange, handleStartGameFromCoinToss, handleFourthDownDecision, handleResetWeek, handleUndo, handleRedo, handleTabChange, handleToggleClock, handleScoreChange, handleUseTimeout, handleGameTimeChange, handlePossessionChange, lastPlay, downAndDistance, handleLineupConfirm, handleUpdateLineup, handleSavePlayDetails, handleOpenReportsModal, handleImportGame, handleClosePlayDetails, handleUpdatePlayer, handleDeletePlayer, handleEditPlay, handleSaveEditedPlay, handleDeletePlay, handleReorderPlay, handleEditFormation, handleCreateFormation, handleSaveFormation, handleDuplicateFormation, handleDeleteFormation, handleImport, handleSaveFieldLogo, handleExportJson, handleTriggerImport, handleExportPdf, startNextQuarter, handleQuarterEnd, getFormationsForEditModal, scoreboardProps, setPlaybookTab, setSelectedFormationName, setIsSummaryModalOpen, setIsReportsModalOpen, setIsImportModalOpen, setIsSettingsModalOpen, setIsAddEventModalOpen, setIsWeekSelectorModalOpen, setIsCoinTossModalOpen, setIsFourthDownModalOpen, setEditingPlayIndex, setEditingFormation, setEditingEventWeek, handleAddNewEvent, handleEditEvent, handleSaveEvent, handleDeleteEvent, handleTeamInfoChange, handleAgeDivisionChange, handleAddPlayer, handleRosterImport, handleSetFormationAsDefault, handleSetPlayerAsStarter, handleUpdateDepthChart, handleSelectFormation, handleCustomThemeChange, handleResetLineupToDefault
+        isResettingFormations, handleResetAllFormations, isCheckingForUpdate, handleCheckForUpdate, isGeneratingDemo, handleLoadDemoData, isSigningOut, handleSignOut, handleClearCacheAndSignOut, user, syncState, selectedWeek, seasonWeeks, players: playersWithCalculatedStats, playHistory, undoStack, redoStack, currentLineups, offenseFormations, defenseFormations, specialTeamsFormations, depthChart, activeTab, playbookTab, selectedFormationName, animationClass, isSummaryModalOpen, isReportsModalOpen, isExportingPdf, gameSummaryData, isQuarterSummaryModalOpen, quarterSummaryData, quarterPlaysForSummary, isImportModalOpen, initialImportTab, isSettingsModalOpen, isAddEventModalOpen, editingPlayIndex, editingFormation, editingEventWeek, isPlayDetailsModalOpen, tempPlayData, theme, toast, isWeekLoading, fieldLogoUrl, isWeekSelectorModalOpen, navBarPosition, opponentNames, opponentCities, homeAwayStatus, weekDates, weekResults, ourScore, opponentScore, currentQuarter, homeTimeouts, awayTimeouts, possession, homeStatus, insertionIndex, scrollToPlayIndex, ourStats, opponentStats, nextPlayState, isCoinTossModalOpen, isFourthDownModalOpen, showWalkthrough, aiSummary, teamName, teamCity, coachName, ageDivision, customTheme, seasonRecord, customIconSheet, defaultIconSheet, gameTime, isClockRunning, getGameTime, setGameTime, setIsClockRunning, handleSaveCustomIconSheet, setAiSummary, handleCompleteWalkthrough, setScrollToPlayIndex, handleInitiateInsert, handleCancelInsert, handleThemeChange, showToast, handleNavBarPositionChange, mainPaddingClass, handleWeekChange, handleStartGameFromCoinToss, handleFourthDownDecision, handleResetWeek, handleUndo, handleRedo, handleTabChange, handleToggleClock, handleScoreChange, handleUseTimeout, handleGameTimeChange, handlePossessionChange, lastPlay, downAndDistance, handleLineupConfirm, handleUpdateLineup, handleSavePlayDetails, handleOpenReportsModal, handleImportGame, handleClosePlayDetails, handleUpdatePlayer, handleDeletePlayer, handleEditPlay, handleSaveEditedPlay, handleDeletePlay, handleReorderPlay, handleEditFormation, handleCreateFormation, handleSaveFormation, handleDuplicateFormation, handleDeleteFormation, handleImport, handleSaveFieldLogo, handleExportJson, handleTriggerImport, handleExportPdf, startNextQuarter, handleQuarterEnd, getFormationsForEditModal, scoreboardProps, setPlaybookTab, setSelectedFormationName, setIsSummaryModalOpen, setIsReportsModalOpen, setIsImportModalOpen, setIsSettingsModalOpen, setIsAddEventModalOpen, setIsWeekSelectorModalOpen, setIsCoinTossModalOpen, setIsFourthDownModalOpen, setEditingPlayIndex, setEditingFormation, setEditingEventWeek, handleAddNewEvent, handleEditEvent, handleSaveEvent, handleDeleteEvent, handleTeamInfoChange, handleAgeDivisionChange, handleAddPlayer, handleRosterImport, handleSetFormationAsDefault, handleSetPlayerAsStarter, handleUpdateDepthChart, handleRebuildDepthChart, handleSelectFormation, handleCustomThemeChange, handleResetLineupToDefault
     }), [
-        isResettingFormations, handleResetAllFormations, isCheckingForUpdate, handleCheckForUpdate, isGeneratingDemo, handleLoadDemoData, isSigningOut, handleSignOut, handleClearCacheAndSignOut, user, syncState, selectedWeek, seasonWeeks, playersWithCalculatedStats, playHistory, undoStack, redoStack, currentLineups, offenseFormations, defenseFormations, specialTeamsFormations, depthChart, activeTab, playbookTab, selectedFormationName, animationClass, isSummaryModalOpen, isReportsModalOpen, isExportingPdf, gameSummaryData, isQuarterSummaryModalOpen, quarterSummaryData, quarterPlaysForSummary, isImportModalOpen, initialImportTab, isSettingsModalOpen, isAddEventModalOpen, editingPlayIndex, editingFormation, editingEventWeek, isPlayDetailsModalOpen, tempPlayData, theme, toast, isWeekLoading, fieldLogoUrl, isWeekSelectorModalOpen, navBarPosition, opponentNames, opponentCities, homeAwayStatus, weekDates, weekResults, ourScore, opponentScore, currentQuarter, homeTimeouts, awayTimeouts, possession, homeStatus, insertionIndex, scrollToPlayIndex, ourStats, opponentStats, nextPlayState, isCoinTossModalOpen, isFourthDownModalOpen, showWalkthrough, aiSummary, teamName, teamCity, coachName, ageDivision, customTheme, seasonRecord, customIconSheet, defaultIconSheet, gameTime, isClockRunning, getGameTime, setGameTime, setIsClockRunning, handleSaveCustomIconSheet, setAiSummary, handleCompleteWalkthrough, setScrollToPlayIndex, handleInitiateInsert, handleCancelInsert, handleThemeChange, showToast, handleNavBarPositionChange, mainPaddingClass, handleWeekChange, handleStartGameFromCoinToss, handleFourthDownDecision, handleResetWeek, handleUndo, handleRedo, handleTabChange, handleToggleClock, handleScoreChange, handleUseTimeout, handleGameTimeChange, handlePossessionChange, lastPlay, downAndDistance, handleLineupConfirm, handleUpdateLineup, handleSavePlayDetails, handleOpenReportsModal, handleImportGame, handleClosePlayDetails, handleUpdatePlayer, handleDeletePlayer, handleEditPlay, handleSaveEditedPlay, handleDeletePlay, handleReorderPlay, handleEditFormation, handleCreateFormation, handleSaveFormation, handleDuplicateFormation, handleDeleteFormation, handleImport, handleSaveFieldLogo, handleExportJson, handleTriggerImport, handleExportPdf, startNextQuarter, handleQuarterEnd, getFormationsForEditModal, scoreboardProps, setPlaybookTab, setSelectedFormationName, setIsSummaryModalOpen, setIsReportsModalOpen, setIsImportModalOpen, setIsSettingsModalOpen, setIsAddEventModalOpen, setIsWeekSelectorModalOpen, setIsCoinTossModalOpen, setIsFourthDownModalOpen, setEditingPlayIndex, setEditingFormation, setEditingEventWeek, handleAddNewEvent, handleEditEvent, handleSaveEvent, handleDeleteEvent, handleTeamInfoChange, handleAgeDivisionChange, handleAddPlayer, handleRosterImport, handleSetFormationAsDefault, handleSetPlayerAsStarter, handleUpdateDepthChart, handleSelectFormation, handleCustomThemeChange, handleResetLineupToDefault
+        isResettingFormations, handleResetAllFormations, isCheckingForUpdate, handleCheckForUpdate, isGeneratingDemo, handleLoadDemoData, isSigningOut, handleSignOut, handleClearCacheAndSignOut, user, syncState, selectedWeek, seasonWeeks, playersWithCalculatedStats, playHistory, undoStack, redoStack, currentLineups, offenseFormations, defenseFormations, specialTeamsFormations, depthChart, activeTab, playbookTab, selectedFormationName, animationClass, isSummaryModalOpen, isReportsModalOpen, isExportingPdf, gameSummaryData, isQuarterSummaryModalOpen, quarterSummaryData, quarterPlaysForSummary, isImportModalOpen, initialImportTab, isSettingsModalOpen, isAddEventModalOpen, editingPlayIndex, editingFormation, editingEventWeek, isPlayDetailsModalOpen, tempPlayData, theme, toast, isWeekLoading, fieldLogoUrl, isWeekSelectorModalOpen, navBarPosition, opponentNames, opponentCities, homeAwayStatus, weekDates, weekResults, ourScore, opponentScore, currentQuarter, homeTimeouts, awayTimeouts, possession, homeStatus, insertionIndex, scrollToPlayIndex, ourStats, opponentStats, nextPlayState, isCoinTossModalOpen, isFourthDownModalOpen, showWalkthrough, aiSummary, teamName, teamCity, coachName, ageDivision, customTheme, seasonRecord, customIconSheet, defaultIconSheet, gameTime, isClockRunning, getGameTime, setGameTime, setIsClockRunning, handleSaveCustomIconSheet, setAiSummary, handleCompleteWalkthrough, setScrollToPlayIndex, handleInitiateInsert, handleCancelInsert, handleThemeChange, showToast, handleNavBarPositionChange, mainPaddingClass, handleWeekChange, handleStartGameFromCoinToss, handleFourthDownDecision, handleResetWeek, handleUndo, handleRedo, handleTabChange, handleToggleClock, handleScoreChange, handleUseTimeout, handleGameTimeChange, handlePossessionChange, lastPlay, downAndDistance, handleLineupConfirm, handleUpdateLineup, handleSavePlayDetails, handleOpenReportsModal, handleImportGame, handleClosePlayDetails, handleUpdatePlayer, handleDeletePlayer, handleEditPlay, handleSaveEditedPlay, handleDeletePlay, handleReorderPlay, handleEditFormation, handleCreateFormation, handleSaveFormation, handleDuplicateFormation, handleDeleteFormation, handleImport, handleSaveFieldLogo, handleExportJson, handleTriggerImport, handleExportPdf, startNextQuarter, handleQuarterEnd, getFormationsForEditModal, scoreboardProps, setPlaybookTab, setSelectedFormationName, setIsSummaryModalOpen, setIsReportsModalOpen, setIsImportModalOpen, setIsSettingsModalOpen, setIsAddEventModalOpen, setIsWeekSelectorModalOpen, setIsCoinTossModalOpen, setIsFourthDownModalOpen, setEditingPlayIndex, setEditingFormation, setEditingEventWeek, handleAddNewEvent, handleEditEvent, handleSaveEvent, handleDeleteEvent, handleTeamInfoChange, handleAgeDivisionChange, handleAddPlayer, handleRosterImport, handleSetFormationAsDefault, handleSetPlayerAsStarter, handleUpdateDepthChart, handleRebuildDepthChart, handleSelectFormation, handleCustomThemeChange, handleResetLineupToDefault
     ]);
 
     return (

@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { SpinnerIcon } from './icons';
 import { PlayerStatus } from '../types';
+import { normalizePosition } from '../utils';
 
 declare const XLSX: any;
 
@@ -65,7 +66,8 @@ const RosterImportModal: React.FC<RosterImportModalProps> = ({ onClose, onImport
                 if (Number.isFinite(jerseyNumber)) {
                     const firstName = row.firstName?.toString().trim();
                     const lastName = row.lastName?.toString().trim();
-                    const position = row.position?.toString().trim().toUpperCase() || '';
+                    const rawPosition = row.position?.toString().trim() || '';
+                    const position = normalizePosition(rawPosition);
                     const statusStr = row.status?.toString().trim();
 
                     if (!firstName || !lastName || !statusStr) {

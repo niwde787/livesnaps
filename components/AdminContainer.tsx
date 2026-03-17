@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { signOut } from '../firebase';
 import AdminUserManagement from './AdminUserManagement';
 import LeaderboardView from './LeaderboardView';
-import { Icon, LogoutIcon, SpinnerIcon } from './icons';
+import { GlobalLeaderboardIcon, LogoutIcon, SpinnerIcon, UserManagementIcon } from './icons';
 
 interface AdminContainerProps {
     user: any;
@@ -25,12 +25,12 @@ const AdminContainer: React.FC<AdminContainerProps> = ({ user }) => {
         }
     };
 
-    const NavButton: React.FC<{ tab: 'users' | 'leaderboard'; label: string; icon: string }> = ({ tab, label, icon }) => (
+    const NavButton: React.FC<{ tab: 'users' | 'leaderboard'; label: string; icon: React.ReactNode }> = ({ tab, label, icon }) => (
         <button
             onClick={() => setActiveTab(tab)}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === tab ? 'bg-[var(--accent-primary)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-white'}`}
         >
-            <Icon name={icon} className="w-4 h-4" />
+            {icon}
             {label}
         </button>
     );
@@ -57,8 +57,8 @@ const AdminContainer: React.FC<AdminContainerProps> = ({ user }) => {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex gap-2 mb-6 border-b border-[var(--border-primary)] pb-1">
-                    <NavButton tab="users" label="User Management" icon="user-management" />
-                    <NavButton tab="leaderboard" label="Global Leaderboard" icon="global-leaderboard" />
+                    <NavButton tab="users" label="User Management" icon={<UserManagementIcon className="w-4 h-4" />} />
+                    <NavButton tab="leaderboard" label="Global Leaderboard" icon={<GlobalLeaderboardIcon className="w-4 h-4" />} />
                 </div>
 
                 <div className="bg-[var(--bg-secondary)] rounded-lg shadow-xl border border-[var(--border-primary)] p-6">

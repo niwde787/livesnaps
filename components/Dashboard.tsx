@@ -48,15 +48,16 @@ const Dashboard: React.FC = () => {
     }, [playbookTab, offenseFormations, defenseFormations, specialTeamsFormations]);
 
     useEffect(() => {
-        if (!formations[selectedFormationName]) {
-            const firstFormationName = Object.keys(formations)[0];
-            if (firstFormationName) {
-                handleSelectFormation(firstFormationName);
-            } else {
-                handleSelectFormation('');
+        const formationsInTab = Object.keys(formations);
+        if (formationsInTab.length > 0) {
+            if (!selectedFormationName || !formations[selectedFormationName]) {
+                handleSelectFormation(formationsInTab[0]);
+            } else if (!currentLineups[selectedFormationName]) {
+                // If we have a valid formation but no lineup yet, trigger the selection logic to generate one
+                handleSelectFormation(selectedFormationName);
             }
         }
-    }, [formations, selectedFormationName, handleSelectFormation]);
+    }, [formations, selectedFormationName, handleSelectFormation, currentLineups]);
 
     const formationData = useMemo(() => formations[selectedFormationName], [formations, selectedFormationName]);
     const formationPositions = useMemo(() => formationData?.positions || [], [formationData]);

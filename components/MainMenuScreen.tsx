@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { db, firestore } from '../firebase';
-import { Icon } from './icons';
+import { Icon, GlobalLeaderboardIcon } from './icons';
 
 interface MainMenuScreenProps {
     setAuthPath: (path: 'coach' | 'viewer' | 'admin', initialMode: 'login' | 'signup', marketingConsent: boolean, email: string) => void;
@@ -197,7 +197,7 @@ const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ setAuthPath, onShowLead
                     <MenuCard
                         title="Global Leaderboards"
                         description="View top performing players and teams across the entire league."
-                        icon={<Icon name="global-leaderboard" className="w-10 h-10" />}
+                        icon={<GlobalLeaderboardIcon className="w-10 h-10" />}
                         onClick={onShowLeaderboard}
                         size="large"
                     />
