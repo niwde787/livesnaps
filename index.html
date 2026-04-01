@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
   <head>
-    <meta charset="utf-8" />
+    <meta charset="utf-ar" />
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/niwde787/CJF/main/CJF_Icon_512.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="manifest" href="manifest.json" />
+    <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#0D1117" />
     <title>Live Snaps</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
@@ -19,16 +21,16 @@
 
         /* Backgrounds */
         --bg-primary: #0D1117;      /* Very dark, slightly blue charcoal */
-        --bg-secondary: #1C2128;     /* Lighter card background */
-        --bg-tertiary: #2D333B;      /* Lighter for hovers/active */
+        --bg-secondary: #161B22;     /* Lighter card background */
+        --bg-tertiary: #21262D;      /* Lighter for hovers/active */
         --bg-glass-effect: rgba(22, 27, 34, 0.7);
         
         /* Borders */
         --border-primary: #30363D;   /* Subtle border color */
 
         /* Text */
-        --text-primary: #FFFFFF;      /* Pure white for max contrast */
-        --text-secondary: #B0B8C1;   /* Lighter grey for better readability */
+        --text-primary: #C9D1D9;      /* Light grey, not pure white */
+        --text-secondary: #8B949E;   /* Medium grey */
         
         /* Accents */
         --accent-primary: #58A6FF;   /* Bright, accessible blue */
@@ -573,6 +575,18 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.19.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="orientation-overlay">
@@ -603,12 +617,12 @@
     <div id="root"></div>
     <div id="modal-root"></div>
     
-    <script type="module" src="index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           // Register the service worker directly with its path. The browser will resolve it.
-          navigator.serviceWorker.register('sw.js').then(registration => {
+          navigator.serviceWorker.register('/sw.js').then(registration => {
             console.log('SW registered: ', registration);
           }).catch(registrationError => {
             console.log('SW registration failed: ', registrationError);

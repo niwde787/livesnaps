@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { GameClockProvider } from './contexts/GameClockContext';
 import { GameStateProvider, useGameState } from './contexts/GameStateContext';
 import LoginScreen from './components/LoginScreen';
 import MainMenuScreen from './components/MainMenuScreen';
@@ -8,12 +7,11 @@ import WelcomeScreen from './components/WelcomeScreen';
 import RoleSelectionScreen from './components/RoleSelectionScreen';
 import ViewerContainer from './components/ViewerContainer';
 import AdminContainer from './components/AdminContainer';
-import SplashScreen from './components/SplashScreen';
 import { onAuthStateChanged, db, setUserRoleInDb, initializeNewUser } from './firebase';
-import { Icon, SpinnerIcon } from './components/icons';
+import { SpinnerIcon } from './components/icons';
+// FIX: Import missing components and types
 import { PlayType, GameStateContextType, AgeDivision } from './types';
 import TopHeader from './components/TopHeader';
-import LeaderboardView from './components/LeaderboardView';
 import WeekDashboard from './components/WeekDashboard';
 import Dashboard from './components/Dashboard';
 import DepthChart from './components/PlayerTable';
@@ -37,7 +35,6 @@ import Toast from './components/Toast';
 import WalkthroughModal from './components/WalkthroughModal';
 import { BottomNavBar } from './components/BottomNavBar';
 import SyncStatus from './components/SyncStatus';
-import ErrorBoundary from './components/ErrorBoundary';
 
 type PreAuthSyncState = 'idle' | 'offline';
 
@@ -46,8 +43,7 @@ const PreAuthFooter: React.FC = () => {
     const [syncState, setSyncState] = useState<PreAuthSyncState>('idle');
 
     useEffect(() => {
-        // @ts-ignore
-        fetch(`${import.meta.env.BASE_URL}metadata.json`)
+        fetch('/metadata.json')
             .then(response => response.json())
             .then(data => {
                 if (data && data.name) {
@@ -92,18 +88,6 @@ const App: React.FC = () => {
     const [initialAuthMode, setInitialAuthMode] = useState<'login' | 'signup'>('login');
     const [marketingConsent, setMarketingConsent] = useState(false);
     const [initialEmail, setInitialEmail] = useState('');
-    const [hasProceeded, setHasProceeded] = useState(false);
-    const [iconSheet, setIconSheet] = useState<string>('');
-    const [showPublicLeaderboard, setShowPublicLeaderboard] = useState(false);
-
-    // Load SVG icon sprite at the top level so it's available everywhere
-    useEffect(() => {
-        // @ts-ignore
-        fetch(`${import.meta.env.BASE_URL}assets/icons.svg`)
-            .then(res => res.text())
-            .then(setIconSheet)
-            .catch(err => console.error("Failed to load icons:", err));
-    }, []);
 
     // Use a ref to track the authPath so the onAuthStateChanged listener doesn't need to be re-bound.
     const authPathRef = useRef(authPath);
@@ -161,7 +145,7 @@ const App: React.FC = () => {
             setIsAuthLoading(false);
         });
         return () => unsubscribe();
-    }, []);
+    }, []); // Dependency array is now empty to prevent re-subscribing.
 
     useEffect(() => {
         if (userRole === 'coach' && onboardingStep === 'complete') {
@@ -169,6 +153,7 @@ const App: React.FC = () => {
         } else {
             document.body.classList.remove('enforce-landscape');
         }
+        // Cleanup function
         return () => {
             document.body.classList.remove('enforce-landscape');
         };
@@ -202,85 +187,70 @@ const App: React.FC = () => {
         }
     };
 
-    // Show splash screen until user clicks "Proceed"
-    if (!hasProceeded) {
-        return <SplashScreen onProceed={() => setHasProceeded(true)} />;
+    if (isAuthLoading) {
+        return (
+            <div className="min-h-screen bg-[var(--bg-primary)] flex justify-center items-center">
+                <SpinnerIcon className="w-12 h-12 text-[var(--accent-primary)]" />
+            </div>
+        );
+    }
+    
+    // New pre-authentication flow
+    if (!user) {
+        if (authPath) {
+            return <>
+                <LoginScreen onBack={() => { setAuthPath(null); setInitialEmail(''); }} initialMode={initialAuthMode} initialEmail={initialEmail} />
+                <PreAuthFooter />
+            </>;
+        }
+        return <>
+            <MainMenuScreen setAuthPath={handleSetAuthPath} />
+            <PreAuthFooter />
+        </>;
     }
 
-    return (
-        <GameClockProvider>
-            {isAuthLoading ? (
-                <div className="min-h-screen bg-[var(--bg-primary)] flex justify-center items-center">
-                    <SpinnerIcon className="w-12 h-12 text-[var(--accent-primary)]" />
-                </div>
-            ) : !user ? (
-                <>
-                    {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
-                    {showPublicLeaderboard ? (
-                        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 sm:p-8">
-                            <div className="max-w-7xl mx-auto">
-                                <button 
-                                    onClick={() => setShowPublicLeaderboard(false)}
-                                    className="mb-6 flex items-center gap-2 text-[var(--text-secondary)] hover:text-white transition-colors"
-                                >
-                                    <Icon name="arrow-left" className="w-5 h-5" />
-                                    Back to Menu
-                                </button>
-                                <LeaderboardView />
-                            </div>
-                        </div>
-                    ) : authPath ? (
-                        <>
-                            <LoginScreen onBack={() => { setAuthPath(null); setInitialEmail(''); }} initialMode={initialAuthMode} initialEmail={initialEmail} />
-                            <PreAuthFooter />
-                        </>
-                    ) : (
-                        <>
-                            <MainMenuScreen setAuthPath={handleSetAuthPath} onShowLeaderboard={() => setShowPublicLeaderboard(true)} />
-                            <PreAuthFooter />
-                        </>
-                    )}
-                </>
-            ) : onboardingStep === 'role_selection' ? (
-                <>
-                    {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
-                    <RoleSelectionScreen onRoleSelect={handleRoleSelect} />
-                    <PreAuthFooter />
-                </>
-            ) : onboardingStep === 'welcome' ? (
-                <>
-                    {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
-                    <WelcomeScreen onTeamCreate={handleTeamCreate} />
-                    <PreAuthFooter />
-                </>
-            ) : (
-                <>
-                    {userRole === 'coach' && (
-                        <ErrorBoundary>
-                            <GameStateProvider user={user} initialShowWalkthrough={initialShowWalkthrough}>
-                                {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
-                                <AppContent />
-                            </GameStateProvider>
-                        </ErrorBoundary>
-                    )}
-                    {userRole === 'viewer' && (
-                        <>
-                            {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
-                            <ViewerContainer />
-                        </>
-                    )}
-                    {userRole === 'admin' && (
-                        <>
-                            {iconSheet && <div dangerouslySetInnerHTML={{ __html: iconSheet }} style={{ display: 'none' }} />}
-                            <AdminContainer user={user} />
-                        </>
-                    )}
-                </>
-            )}
-        </GameClockProvider>
-    );
+    // Authenticated user flow
+    if (onboardingStep === 'role_selection') return <>
+        <RoleSelectionScreen onRoleSelect={handleRoleSelect} />
+        <PreAuthFooter />
+    </>;
+    if (onboardingStep === 'welcome') return <>
+        <WelcomeScreen onTeamCreate={handleTeamCreate} />
+        <PreAuthFooter />
+    </>;
+
+    // Final 'complete' state render
+    if (userRole === 'coach') {
+      return (
+          <GameStateProvider user={user} initialShowWalkthrough={initialShowWalkthrough}>
+              <AppContent />
+          </GameStateProvider>
+      );
+    }
+
+    if (userRole === 'viewer') {
+        return <ViewerContainer />;
+    }
+
+    if (userRole === 'admin') {
+        return <AdminContainer user={user} />;
+    }
+
+    return null; // Should not be reached
 };
 
+
+const DynamicIconSpriteInjector: React.FC = () => {
+    const { customIconSheet, defaultIconSheet } = useGameState();
+    const svgContent = customIconSheet || defaultIconSheet;
+  
+    if (!svgContent) {
+      return null;
+    }
+  
+    // This div is hidden but makes the SVG symbols available to <use> tags throughout the app.
+    return <div dangerouslySetInnerHTML={{ __html: svgContent }} style={{ display: 'none' }} />;
+};
 
 const AppContent: React.FC = () => {
     const {
@@ -308,6 +278,7 @@ const AppContent: React.FC = () => {
         isCoinTossModalOpen,
         isFourthDownModalOpen,
         showWalkthrough,
+// FIX: Destructure `isWeekSelectorModalOpen` from useGameState.
         isWeekSelectorModalOpen,
     } = useGameState();
 
@@ -332,6 +303,7 @@ const AppContent: React.FC = () => {
 
     return (
         <div className={`font-sans min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-300 ${mainPaddingClass}`}>
+            <DynamicIconSpriteInjector />
             <TopHeader />
             <div className="w-full px-2 sm:px-4 py-4 pt-16">
                 

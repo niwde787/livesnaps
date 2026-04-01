@@ -222,13 +222,6 @@ export enum PlayResult {
     Run1ptConversionFailed = '1pt Run Conv. Failed',
 }
 
-export interface ImportedRosterPlayer {
-    jerseyNumber: number;
-    name: string;
-    position: string;
-    status: PlayerStatus;
-}
-
 export type ActiveTab = 'overview' | 'game' | 'roster' | 'play-log' | 'formations' | 'insights';
 export type NavBarPosition = 'bottom' | 'top' | 'left' | 'right';
 export type Theme = 'dark' | 'light' | 'material-you' | 'custom';
@@ -372,19 +365,6 @@ export interface NarrationContext {
     homeStatus: 'Home' | 'Away';
 }
 
-export interface GameStateSnapshot {
-    playHistory: Play[];
-    ourScore: number;
-    opponentScore: number;
-    currentQuarter: number;
-    gameTime: number;
-    isClockRunning: boolean;
-    homeTimeouts: number;
-    awayTimeouts: number;
-    possession: 'home' | 'away' | null;
-    currentLineups: Record<string, (string | null)[]>;
-}
-
 // FIX: Added isGeneratingDemo and handleLoadDemoData to support the presentation data feature.
 export interface GameStateContextType {
     isResettingFormations: boolean;
@@ -402,8 +382,8 @@ export interface GameStateContextType {
     seasonWeeks: string[];
     players: Player[];
     playHistory: Play[];
-    undoStack: GameStateSnapshot[];
-    redoStack: GameStateSnapshot[];
+    undoStack: Play[][];
+    redoStack: Play[][];
     currentLineups: Record<string, (string | null)[]>;
     offenseFormations: FormationCollection;
     defenseFormations: FormationCollection;
@@ -443,6 +423,8 @@ export interface GameStateContextType {
     ourScore: number;
     opponentScore: number;
     currentQuarter: number;
+    gameTime: number;
+    isClockRunning: boolean;
     homeTimeouts: number;
     awayTimeouts: number;
     possession: 'home' | 'away' | null;
@@ -464,13 +446,6 @@ export interface GameStateContextType {
     seasonRecord: { wins: number; losses: number; ties: number; };
     customIconSheet: string | null;
     defaultIconSheet: string;
-    gameTime: number;
-    isClockRunning: boolean;
-    getGameTime: () => number;
-    setGameTime: (time: number) => void;
-    setIsClockRunning: (running: boolean) => void;
-    handleToggleClock: () => void;
-    handleGameTimeChange: (newTime: number) => void;
     handleSaveCustomIconSheet: (svgString: string) => Promise<void>;
     setAiSummary: React.Dispatch<React.SetStateAction<AiSummary | null>>;
     handleCompleteWalkthrough: () => void;
@@ -488,8 +463,10 @@ export interface GameStateContextType {
     handleUndo: () => void;
     handleRedo: () => void;
     handleTabChange: (tab: ActiveTab) => void;
+    handleToggleClock: () => void;
     handleScoreChange: (newOurScore: number, newOpponentScore: number) => void;
     handleUseTimeout: (team: 'home' | 'away') => void;
+    handleGameTimeChange: (newTimeInSeconds: number) => void;
     handlePossessionChange: (team: 'home' | 'away') => void;
     lastPlay: Play | undefined;
     downAndDistance: string;
@@ -539,11 +516,10 @@ export interface GameStateContextType {
     handleTeamInfoChange: (name: string, city: string, coachName: string) => void;
     handleAgeDivisionChange: (division: AgeDivision) => void;
     handleAddPlayer: (player: { jerseyNumber: number; name: string; position: string; status: PlayerStatus; }) => Promise<void>;
-    handleRosterImport: (players: ImportedRosterPlayer[]) => Promise<void>;
+    handleRosterImport: (players: any[]) => Promise<void>;
     handleSetFormationAsDefault: (playType: PlayType, formationName: string) => void;
     handleSetPlayerAsStarter: (playerId: string) => void;
     handleUpdateDepthChart: (group: string, playerIds: string[]) => void;
-    handleSelectFormation: (name: string) => void;
     handleCustomThemeChange: (theme: CustomTheme) => void;
     handleResetLineupToDefault: (formationName: string) => void;
 }

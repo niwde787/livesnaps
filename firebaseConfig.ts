@@ -1,5 +1,5 @@
 export const firebaseConfig = {
-  apiKey: "AIzaSyDtAUeImlcJoY0nlUbnJ7-qtoMPs-6b7fE",
+  apiKey: "AIzaSyCYdXmh9qXZcKRhIM7tyPBE_uiFh1gGbHE",
   authDomain: "live-snaps.firebaseapp.com",
   databaseURL: "https://live-snaps.firebaseio.com",
   projectId: "live-snaps",
