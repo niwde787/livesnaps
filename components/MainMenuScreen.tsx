@@ -4,7 +4,6 @@ import { Icon } from './icons';
 
 interface MainMenuScreenProps {
     setAuthPath: (path: 'coach' | 'viewer' | 'admin', initialMode: 'login' | 'signup', marketingConsent: boolean, email: string) => void;
-    onShowLeaderboard: () => void;
 }
 
 const MenuCard: React.FC<{
@@ -104,7 +103,7 @@ const SpinnerIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 
-const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ setAuthPath, onShowLeaderboard }) => {
+const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ setAuthPath }) => {
     const [marketingConsent, setMarketingConsent] = useState(true);
     const [subscriptionEmail, setSubscriptionEmail] = useState('');
     const [subscriptionStatus, setSubscriptionStatus] = useState<'idle' | 'subscribing' | 'success' | 'error'>('idle');
@@ -192,13 +191,6 @@ const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ setAuthPath, onShowLead
                         description="For system administrators to manage users and data."
                         icon={<AdminPortalIcon />}
                         onClick={() => setAuthPath('admin', 'login', false, 'admin')}
-                        size="large"
-                    />
-                    <MenuCard
-                        title="Global Leaderboards"
-                        description="View top performing players and teams across the entire league."
-                        icon={<Icon name="global-leaderboard" className="w-10 h-10" />}
-                        onClick={onShowLeaderboard}
                         size="large"
                     />
                 </div>

@@ -1,6 +1,5 @@
-import React, { useState, useRef } from 'react';
-import ReactDOM from 'react-dom';
-import { SpinnerIcon, CameraIcon } from './icons';
+import React, { useState, useRef, useEffect } from 'react';
+import { SpinnerIcon } from './icons';
 import { PlayerStatus } from '../types';
 import { DEFAULT_PLAYER_IMAGE, ALL_POSITION_OPTIONS } from '../constants';
 import { formatPosition } from '../utils';
@@ -19,24 +18,11 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({ onClose, onAddPlayer })
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [activePositionTab, setActivePositionTab] = useState<'Offense' | 'Defense' | 'Specialists'>('Offense');
-    const [imageUrl, setImageUrl] = useState<string | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleTogglePosition = (pos: string) => {
         setSelectedPositions(prev =>
             prev.includes(pos) ? prev.filter(p => p !== pos) : [...prev, pos].sort()
         );
-    };
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImageUrl(reader.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -60,84 +46,95 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({ onClose, onAddPlayer })
         onClose();
     };
 
-    const modalRoot = document.getElementById('modal-root') || document.body;
-
-    return ReactDOM.createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4" onClick={onClose}>
-            <form onSubmit={handleSubmit} className="glass-effect rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-                <header className="p-4 border-b border-white/10 bg-white/5">
-                    <h2 className="text-lg font-bold text-white">Add New Player</h2>
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50 p-4" onClick={onClose}>
+            <form onSubmit={handleSubmit} className="glass-effect rounded-lg shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+                <header className="p-4 border-b border-[var(--border-primary)]">
+                    <h2 className="text-xl font-bold text-[var(--text-primary)]">Add New Player</h2>
                 </header>
-                <main className="p-5 space-y-5 max-h-[75vh] overflow-y-auto custom-scrollbar">
-                    <div className="flex items-start gap-5">
-                        <div className="relative flex-shrink-0">
-                            <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center border-2 border-white/20 overflow-hidden">
-                                {imageUrl ? <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" /> : <div className="text-white/40 text-2xl font-bold">?</div>}
-                            </div>
-                            <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute -bottom-1 -right-1 bg-[#1C2128] p-1.5 rounded-full border border-white/20 hover:bg-[#2D333B] transition-colors shadow-lg">
-                                <CameraIcon className="w-4 h-4 text-white" />
-                            </button>
-                            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-                        </div>
-                        <div className="flex-grow space-y-3">
-                            <div>
-                                <label htmlFor="add-jerseyNumber" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Jersey #</label>
-                                <input type="number" id="add-jerseyNumber" value={jersey} onChange={e => setJersey(e.target.value)} required className="mt-1 w-full bg-black/20 border border-white/10 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-[var(--accent-primary)] transition-colors" />
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                    <label htmlFor="add-firstName" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">First Name</label>
-                                    <input type="text" id="add-firstName" value={firstName} onChange={e => setFirstName(e.target.value)} required className="mt-1 w-full bg-black/20 border border-white/10 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-[var(--accent-primary)] transition-colors" />
-                                </div>
-                                <div>
-                                    <label htmlFor="add-lastName" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Last Name</label>
-                                    <input type="text" id="add-lastName" value={lastName} onChange={e => setLastName(e.target.value)} required className="mt-1 w-full bg-black/20 border border-white/10 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-[var(--accent-primary)] transition-colors" />
-                                </div>
-                            </div>
+                <main className="p-6 space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="sm:col-span-1">
+                            <label htmlFor="add-jerseyNumber" className="block text-sm font-medium text-[var(--text-secondary)]">Jersey #</label>
+                            <input type="number" id="add-jerseyNumber" value={jersey} onChange={e => setJersey(e.target.value)} required className="mt-1 w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md py-2 px-3 text-[var(--text-primary)]" />
                         </div>
                     </div>
-
-                    <div>
-                        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Position(s)</label>
-                        <div className="w-full bg-black/20 border border-white/10 rounded-lg p-2 flex items-center flex-wrap gap-1.5 min-h-[40px] mt-1 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="add-firstName" className="block text-sm font-medium text-[var(--text-secondary)]">First Name</label>
+                            <input type="text" id="add-firstName" value={firstName} onChange={e => setFirstName(e.target.value)} required className="mt-1 w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md py-2 px-3 text-[var(--text-primary)]" />
+                        </div>
+                        <div>
+                            <label htmlFor="add-lastName" className="block text-sm font-medium text-[var(--text-secondary)]">Last Name</label>
+                            <input type="text" id="add-lastName" value={lastName} onChange={e => setLastName(e.target.value)} required className="mt-1 w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md py-2 px-3 text-[var(--text-primary)]" />
+                        </div>
+                    </div>
+                     <div>
+                        <label className="text-sm font-medium text-[var(--text-secondary)]">Position(s) (Optional)</label>
+                        <div className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md p-2 flex items-center flex-wrap gap-1.5 min-h-[44px] mt-1">
                             {selectedPositions.length > 0 ? (
                                 selectedPositions.map(pos => (
-                                    <span key={pos} className="bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[var(--accent-primary)]/30">{formatPosition(pos)}</span>
+                                    <span key={pos} className="bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] text-xs font-bold px-2 py-1 rounded-full">{formatPosition(pos)}</span>
                                 ))
-                            ) : <span className="text-gray-500 text-xs px-1">No positions assigned...</span>}
+                            ) : (
+                                <span className="text-[var(--text-secondary)] px-1">Select positions below...</span>
+                            )}
                         </div>
 
-                        <div className="mt-3 border border-white/10 rounded-xl overflow-hidden bg-black/10">
-                            <div className="flex border-b border-white/10 bg-white/5">
+                        <div className="mt-2 border border-[var(--border-primary)] rounded-lg">
+                            <div className="flex border-b border-[var(--border-primary)] bg-[var(--bg-secondary)] rounded-t-lg">
                                 {ALL_POSITION_OPTIONS.map(group => (
-                                    <button type="button" key={group.group} onClick={() => setActivePositionTab(group.group as any)} className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors ${activePositionTab === group.group ? 'bg-white/10 text-[var(--accent-primary)]' : 'text-gray-500 hover:text-gray-300'}`}>{group.group}</button>
+                                    <button
+                                        type="button"
+                                        key={group.group}
+                                        onClick={() => setActivePositionTab(group.group as any)}
+                                        className={`flex-1 py-2 px-2 text-sm font-bold transition-colors duration-200 focus:outline-none first:rounded-tl-md last:rounded-tr-md ${activePositionTab === group.group ? 'bg-[var(--bg-tertiary)] text-[var(--accent-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]/50'}`}
+                                    >
+                                        {group.group}
+                                    </button>
                                 ))}
                             </div>
-                            <div className="p-4">
+
+                            <div className="p-4 bg-[var(--bg-tertiary)] rounded-b-lg">
                                 {ALL_POSITION_OPTIONS.map(group => (
-                                    <div key={group.group} className={`${activePositionTab === group.group ? 'grid grid-cols-3 gap-y-3' : 'hidden'}`}>
-                                        {group.positions.map(pos => (
-                                            <label key={pos} className="flex items-center text-[11px] text-gray-400 hover:text-white cursor-pointer group">
-                                                <input type="checkbox" checked={selectedPositions.includes(pos)} onChange={() => handleTogglePosition(pos)} className="h-3.5 w-3.5 rounded bg-black/40 border-white/20 text-[var(--accent-primary)] focus:ring-0 transition-all" />
-                                                <span className="ml-2 group-hover:translate-x-0.5 transition-transform">{formatPosition(pos)}</span>
-                                            </label>
-                                        ))}
+                                    <div key={group.group} className={`${activePositionTab === group.group ? 'block' : 'hidden'}`}>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
+                                            {group.positions.map(pos => (
+                                                <label key={pos} className="flex items-center text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedPositions.includes(pos)}
+                                                        onChange={() => handleTogglePosition(pos)}
+                                                        className="h-4 w-4 rounded bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]"
+                                                    />
+                                                    <span className="ml-2">{formatPosition(pos)}</span>
+                                                </label>
+                                            ))}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
                         </div>
                     </div>
-                    {error && <p className="text-red-400 text-[10px] text-center font-bold uppercase tracking-wider">{error}</p>}
+                    <div>
+                        <label htmlFor="add-status" className="block text-sm font-medium text-[var(--text-secondary)]">Status</label>
+                        <select id="add-status" value={status} onChange={e => setStatus(e.target.value as PlayerStatus)} className="mt-1 w-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-md py-2 px-3 text-[var(--text-primary)]">
+                            {Object.values(PlayerStatus).map(s => (
+                                <option key={s} value={s}>{s}</option>
+                            ))}
+                        </select>
+                    </div>
+                    {error && <p className="text-red-400 text-sm text-center mt-4">{error}</p>}
                 </main>
-                <footer className="p-4 border-t border-white/10 flex justify-end gap-2 bg-white/5">
-                    <button type="button" onClick={onClose} className="px-4 py-2 bg-white/5 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg hover:bg-white/10 transition-colors">Cancel</button>
-                    <button type="submit" disabled={isLoading} className="flex items-center justify-center gap-2 min-w-[100px] px-4 py-2 bg-[var(--accent-primary)] text-white text-[10px] font-bold uppercase tracking-wider rounded-lg hover:bg-[var(--accent-primary-hover)] transition-all shadow-lg shadow-blue-500/20 disabled:opacity-50">
-                        {isLoading ? <SpinnerIcon className="w-4 h-4" /> : 'Add Player'}
+                <footer className="p-4 border-t border-[var(--border-primary)] flex justify-end space-x-4">
+                    <button type="button" onClick={onClose} className="px-6 py-2 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--border-primary)]">Cancel</button>
+                    <button type="submit" disabled={isLoading} className="flex items-center justify-center gap-2 px-6 py-2 bg-[var(--accent-primary)] text-white font-bold rounded-lg hover:bg-[var(--accent-primary-hover)] disabled:bg-gray-500">
+                        {isLoading && <SpinnerIcon className="w-5 h-5" />}
+                        {isLoading ? 'Adding...' : 'Add Player'}
                     </button>
                 </footer>
             </form>
-        </div>,
-        modalRoot
+        </div>
     );
 };
 

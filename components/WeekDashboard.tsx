@@ -27,7 +27,7 @@ export const SnapsRankingCard: React.FC<{ players: Player[]; totalPlays: number;
     }, [players, totalPlays]);
 
     return (
-        <div className="bg-[var(--bg-secondary)] rounded-lg p-4 h-[248px] flex flex-col shadow-sm">
+        <div className="bg-[var(--bg-primary)] rounded-lg p-4 h-[248px] flex flex-col shadow-sm">
             <h3 className="text-lg font-bold text-[var(--logo-color)] border-b border-[var(--border-primary)] pb-2 mb-3 flex-shrink-0">Snaps Ranking</h3>
             {rankedPlayers.length === 0 ? (
                 <div className="flex flex-col items-center justify-center flex-grow text-center text-[var(--text-secondary)]">
@@ -66,7 +66,7 @@ export const SnapsRankingCard: React.FC<{ players: Player[]; totalPlays: number;
 export const FormationEfficiencyCard: React.FC<{ formationStats: Record<string, FormationStats> }> = ({ formationStats }) => {
     const sortedFormations = (Object.entries(formationStats) as [string, FormationStats][]).sort(([, a], [, b]) => b.playCount - a.playCount);
     return (
-        <div className="bg-[var(--bg-secondary)] rounded-lg p-4 h-[248px] flex flex-col shadow-sm">
+        <div className="bg-[var(--bg-primary)] rounded-lg p-4 h-[248px] flex flex-col shadow-sm">
             <h3 className="text-lg font-bold text-[var(--logo-color)] border-b border-[var(--border-primary)] pb-2 mb-3 flex-shrink-0">Formation Efficiency</h3>
             {sortedFormations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center flex-grow text-center text-[var(--text-secondary)]">
@@ -157,7 +157,7 @@ export const TeamStatsComparisonCard: React.FC<{ ourStats: any; opponentStats: a
     };
 
     return (
-        <div className="bg-[var(--bg-secondary)] rounded-lg p-4 h-[248px] shadow-sm flex flex-col">
+        <div className="bg-[var(--bg-primary)] rounded-lg p-4 h-[248px] shadow-sm flex flex-col">
             <div className="flex justify-between items-baseline mb-3 border-b border-[var(--border-primary)] pb-2 flex-shrink-0">
                 <h3 className="text-lg font-bold text-[var(--logo-color)]">Team Comparison</h3>
                 <div className="flex gap-4 text-xs font-bold text-[var(--text-secondary)]">
@@ -199,7 +199,7 @@ const StatLeaderItem: React.FC<{ player: Player; value: number | string; subLabe
 );
 
 const StatCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-    <div className="bg-[var(--bg-secondary)] rounded-lg p-4 h-[248px] flex flex-col shadow-sm">
+    <div className="bg-[var(--bg-primary)] rounded-lg p-4 h-[248px] flex flex-col shadow-sm">
         <h3 className="text-lg font-bold text-[var(--text-primary)] border-b border-[var(--border-primary)] pb-2 mb-3 flex-shrink-0">{title}</h3>
         <div className="flex-grow overflow-y-auto -mr-2 pr-2 no-scrollbar">
             {children}
@@ -311,36 +311,24 @@ const WeekDashboard: React.FC = () => {
         <div className="flex flex-col gap-4">
             <Scoreboard />
 
-            <div className="grid grid-cols-1 sm:grid-cols-6 lg:grid-cols-12 gap-4">
-                {/* Top Row: 3 items, each spanning 4 columns on large screens */}
-                <div className="sm:col-span-6 lg:col-span-4">
-                    <SnapsRankingCard players={players} totalPlays={totalPlays} />
-                </div>
-                <div className="sm:col-span-6 lg:col-span-4">
-                    <FormationEfficiencyCard formationStats={displaySummaryData.formationStats} />
-                </div>
-                <div className="sm:col-span-6 lg:col-span-4">
-                    <TeamStatsComparisonCard 
-                        ourStats={ourStats} 
-                        opponentStats={opponentStats} 
-                        opponentName={opponentNames[selectedWeek]} 
-                        teamName={teamName} 
-                    />
-                </div>
+            {/* Top Row: 3 items */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <SnapsRankingCard players={players} totalPlays={totalPlays} />
+                <FormationEfficiencyCard formationStats={displaySummaryData.formationStats} />
+                <TeamStatsComparisonCard 
+                    ourStats={ourStats} 
+                    opponentStats={opponentStats} 
+                    opponentName={opponentNames[selectedWeek]} 
+                    teamName={teamName} 
+                />
+            </div>
 
-                {/* Bottom Row: 4 items, each spanning 3 columns on large screens */}
-                <div className="sm:col-span-3 lg:col-span-3">
-                    <PassingStatsCard topPerformers={displaySummaryData.topPerformers} playerMap={playerMap} />
-                </div>
-                <div className="sm:col-span-3 lg:col-span-3">
-                    <RushingStatsCard topPerformers={displaySummaryData.topPerformers} playerMap={playerMap} />
-                </div>
-                <div className="sm:col-span-3 lg:col-span-3">
-                    <ReceivingStatsCard topPerformers={displaySummaryData.topPerformers} playerMap={playerMap} />
-                </div>
-                <div className="sm:col-span-3 lg:col-span-3">
-                    <DefensiveStatsCard topPerformers={displaySummaryData.topPerformers} playerMap={playerMap} />
-                </div>
+            {/* Bottom Row: 4 items */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <PassingStatsCard topPerformers={displaySummaryData.topPerformers} playerMap={playerMap} />
+                <RushingStatsCard topPerformers={displaySummaryData.topPerformers} playerMap={playerMap} />
+                <ReceivingStatsCard topPerformers={displaySummaryData.topPerformers} playerMap={playerMap} />
+                <DefensiveStatsCard topPerformers={displaySummaryData.topPerformers} playerMap={playerMap} />
             </div>
 
             <div className="w-full">

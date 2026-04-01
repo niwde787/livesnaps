@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getAllTeamData } from '../firebase';
-import { Icon, SpinnerIcon } from './icons';
+import { SpinnerIcon } from './icons';
 import { Play, Player, PlayResult, AgeDivision, AgeDivisionLabels } from '../types';
 
 declare const window: any;
@@ -400,10 +400,7 @@ const LeaderboardView: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-3">
-                <Icon name="global-leaderboard" className="w-8 h-8 text-[var(--accent-primary)]" />
-                <h2 className="text-3xl font-bold">Global Leaderboards</h2>
-            </div>
+            <h2 className="text-3xl font-bold">Global Leaderboards</h2>
             
             <div className="border-b border-[var(--border-primary)]">
                 <nav className="flex -mb-px">

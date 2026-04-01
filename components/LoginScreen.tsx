@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { signIn, signUp, signInWithGoogle } from '../firebase';
+import { signIn, signUp } from '../firebase';
 import { SpinnerIcon, ChevronLeftIcon } from './icons';
 
 interface LoginScreenProps {
@@ -42,18 +42,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onBack, initialMode = 'login'
                 message = 'An account with this email already exists. Please sign in instead.';
             }
             setError(message);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleGoogleSignIn = async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            await signInWithGoogle();
-        } catch (err: any) {
-            setError(err.message || 'Google Sign-In failed.');
         } finally {
             setIsLoading(false);
         }
@@ -112,25 +100,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onBack, initialMode = 'login'
                     >
                         {isLoading && <SpinnerIcon className="w-5 h-5" />}
                         {isLoading ? 'Processing...' : (isSigningUp ? 'Sign Up' : 'Sign In')}
-                    </button>
-
-                    <div className="relative my-6">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-[var(--border-primary)]"></div>
-                        </div>
-                        <div className="relative flex justify-center text-sm">
-                            <span className="px-2 bg-[var(--bg-secondary)] text-[var(--text-secondary)]">Or continue with</span>
-                        </div>
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={handleGoogleSignIn}
-                        disabled={isLoading}
-                        className="w-full flex justify-center items-center gap-3 py-2.5 px-4 bg-white text-gray-900 font-semibold rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--bg-secondary)] focus:ring-gray-400 disabled:opacity-50 transition-colors"
-                    >
-                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
-                        Google
                     </button>
 
                     <div className="text-center mt-4">

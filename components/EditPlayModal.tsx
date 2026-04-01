@@ -432,12 +432,6 @@ const EditPlayModal: React.FC = () => {
                                     assignments={assignments}
                                     onAssignmentsChange={setAssignments}
                                     onSlotClick={handleSlotClick}
-                                    onDrop={() => {}}
-                                    onDragOver={() => {}}
-                                    onDragLeave={() => {}}
-                                    onDragStart={() => {}}
-                                    draggedIndex={null}
-                                    dragOverIndex={null}
                                 />
                             </div>
                         </div>

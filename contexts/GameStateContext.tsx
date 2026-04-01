@@ -1,14 +1,12 @@
 import React, { createContext, useState, useEffect, useCallback, useMemo, useRef, useContext, ReactNode } from 'react';
 // FIX: Import StoredGameState from types.ts to resolve module error.
-import { Player, Play, PlayType, PlayerStatus, ActiveTab, FormationCollection, ParsedRosterUpdate, ParsedFormation, ParsedOpponentUpdate, WeekData, Formation, PlayResult, Highlight, QuarterSummaryData, FormationStats, FormationPosition, NavBarPosition, ScoreboardProps, PlayerStats, StoredGameState, SelectablePlayType, Theme, CustomTheme, AiSummary, Drive, GameStateContextType, SerializablePlay, AgeDivision, GameStateSnapshot, ImportedRosterPlayer } from '../types';
+import { Player, Play, PlayType, PlayerStatus, ActiveTab, FormationCollection, ParsedRosterUpdate, ParsedFormation, ParsedOpponentUpdate, WeekData, Formation, PlayResult, Highlight, QuarterSummaryData, FormationStats, FormationPosition, NavBarPosition, ScoreboardProps, PlayerStats, StoredGameState, SelectablePlayType, Theme, CustomTheme, AiSummary, Drive, GameStateContextType, SerializablePlay, AgeDivision } from '../types';
 // FIX: Remove StoredGameState from firebase import as it's now in types.ts.
 // FIX: Add markWalkthroughCompleted to firebase import.
-import { db, listenToGameState, saveGameStateToFirebase, listenToUserSettings, saveUserSettingsToFirebase, addPlayerToAllWeeks, updatePlayerInAllWeeks, updateRosterForAllWeeks, firestore, deletePlayerFromAllWeeks, saveSchedule, markWalkthroughCompleted, signOut, savePlay, deletePlay, resetPlaysForWeek, createWeekDoc } from '../firebase';
+import { db, listenToGameState, saveGameStateToFirebase, listenToUserSettings, saveUserSettingsToFirebase, addPlayerToAllWeeks, updatePlayerInAllWeeks, updateRosterForAllWeeks, firestore, deletePlayerFromAllWeeks, saveSchedule, markWalkthroughCompleted, signOut, savePlay, deletePlay, resetPlaysForWeek } from '../firebase';
 import { GAME_DATA, WEEKLY_OPPONENTS, WEEKS, WEEKLY_HOME_AWAY, WEEK_DATES, WEEKLY_RESULTS, DEFAULT_PLAYER_IMAGE, BLANK_WEEK_DATA, OFFENSE_DISPLAY_GROUPS, DEFENSE_DISPLAY_GROUPS, ST_DISPLAY_GROUPS, LEAGUE_STANDINGS } from '../constants';
-import { calculateScoreAdjustments, getOrdinal, formatTime, parseGameTime, calculateDrives, deepCopy, getLastName, parseSimpleMarkdown, normalizePosition } from '../utils';
+import { calculateScoreAdjustments, getOrdinal, formatTime, parseGameTime, calculateDrives, deepCopy, getLastName, parseSimpleMarkdown } from '../utils';
 import { DEFAULT_OFFENSE_FORMATIONS, DEFAULT_DEFENSE_FORMATIONS, DEFAULT_SPECIAL_TEAMS_FORMATIONS } from '../defaultFormations';
-
-import { useGameClock } from './GameClockContext';
 
 const tabOrder: ActiveTab[] = ['overview', 'game', 'play-log', 'roster', 'formations', 'insights'];
 type SyncState = 'idle' | 'syncing' | 'synced' | 'offline';
@@ -26,6 +24,19 @@ const DEFAULT_CUSTOM_THEME: CustomTheme = {
   accentDefense: '#EF4444',
   accentSpecial: '#A855F7',
 };
+
+interface GameStateSnapshot {
+    playHistory: Play[];
+    ourScore: number;
+    opponentScore: number;
+    currentQuarter: number;
+    gameTime: number;
+    isClockRunning: boolean;
+    homeTimeouts: number;
+    awayTimeouts: number;
+    possession: 'home' | 'away' | null;
+    currentLineups: Record<string, (string | null)[]>;
+}
 
 const getFormationsForType = (
     playType: PlayType,
@@ -91,6 +102,13 @@ type TeamStats = {
     patConversions: number;
 };
 
+type ImportedRosterPlayer = {
+    jerseyNumber: number;
+    name: string;
+    position: string;
+    status: PlayerStatus;
+};
+
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
 
 // FIX: Export the useGameState hook to allow components to access the context.
@@ -119,7 +137,7 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
     const [teamCity, setTeamCity] = useState('');
     const [coachName, setCoachName] = useState('');
     const [ageDivision, setAgeDivision] = useState<AgeDivision | null>(null);
-    const [seasonWeeks, setSeasonWeeks] = useState<string[]>(WEEKS);
+    const [seasonWeeks, setSeasonWeeks] = useState<string[]>([]);
     const [opponentNames, setOpponentNames] = useState<Record<string, string>>({});
     const [opponentCities, setOpponentCities] = useState<Record<string, string>>({});
     const [homeAwayStatus, setHomeAwayStatus] = useState<Record<string, 'Home' | 'Away'>>({});
@@ -177,6 +195,8 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
     const [ourScore, setOurScore] = useState(0);
     const [opponentScore, setOpponentScore] = useState(0);
     const [currentQuarter, setCurrentQuarter] = useState(1);
+    const [gameTime, setGameTime] = useState(10 * 60);
+    const [isClockRunning, setIsClockRunning] = useState(false);
     const [homeTimeouts, setHomeTimeouts] = useState(3);
     const [awayTimeouts, setAwayTimeouts] = useState(3);
     const [possession, setPossession] = useState<'home' | 'away' | null>(null);
@@ -197,20 +217,9 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
     const [isResettingFormations, setIsResettingFormations] = useState(false);
     const [customIconSheet, setCustomIconSheet] = useState<string | null>(null);
     const [defaultIconSheet, setDefaultIconSheet] = useState<string>('');
-
-    const { gameTime, isClockRunning, setGameTime, setIsClockRunning, getGameTime, handleToggleClock: toggleClock } = useGameClock();
-
-    const handleToggleClock = useCallback(() => {
-        toggleClock();
-    }, [toggleClock]);
-
-    const handleGameTimeChange = useCallback((newTime: number) => {
-        setGameTime(newTime);
-    }, [setGameTime]);
     
     useEffect(() => {
-        // @ts-ignore
-        fetch(`${import.meta.env.BASE_URL}assets/icons.svg`).then(res => res.text()).then(setDefaultIconSheet);
+        fetch('/assets/icons.svg').then(res => res.text()).then(setDefaultIconSheet);
     }, []);
 
     useEffect(() => {
@@ -341,8 +350,7 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
                     return dateA - dateB;
                 });
                 
-                setSeasonWeeks(sortedWeeks.length > 0 ? sortedWeeks : WEEKS);
-                console.log('seasonWeeks updated from schedule:', sortedWeeks.length > 0 ? sortedWeeks : WEEKS);
+                setSeasonWeeks(sortedWeeks);
                 setOpponentNames(settings.schedule.opponents || {});
                 setOpponentCities(settings.schedule.cities || {});
                 setHomeAwayStatus(settings.schedule.homeAway || {});
@@ -369,7 +377,6 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
                 }
             } else {
                 setSeasonWeeks(WEEKS);
-                console.log('seasonWeeks updated from default WEEKS');
                 setOpponentNames(WEEKLY_OPPONENTS);
                 setOpponentCities({});
                 setHomeAwayStatus(WEEKLY_HOME_AWAY);
@@ -777,21 +784,15 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
         const isViewer = !user.email;
     
         const unsubscribe = listenToGameState(user.uid, selectedWeek, ({ data, error }) => {
-            console.log("listenToGameState callback:", { data, error });
             setAiSummary(null); // Clear AI summary on any data change
             if (syncStateRef.current === 'syncing' && !isInitialLoadRef.current) {
                 return;
             }
 
             if (error && error.code === 'not-found') {
-                createWeekDoc(user.uid, selectedWeek).then(() => {
-                    showToast(`Created missing data for ${selectedWeek}.`, 'success');
-                }).catch((err) => {
-                    showToast(`Error creating missing data for ${selectedWeek}: ${err.message}`, 'error');
-                    setDbError(`**Firestore Database Not Found!**...`);
-                    setIsWeekLoading(false);
-                    setSyncState('offline');
-                });
+                setDbError(`**Firestore Database Not Found!**...`);
+                setIsWeekLoading(false);
+                setSyncState('offline');
                 return;
             }
 
@@ -890,6 +891,8 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
         ourScore,
         opponentScore,
         currentQuarter,
+        gameTime,
+        isClockRunning,
         homeTimeouts,
         awayTimeouts,
         possession,
@@ -907,14 +910,16 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
             ourScore,
             opponentScore,
             currentQuarter,
+            gameTime,
+            isClockRunning,
             homeTimeouts,
             awayTimeouts,
             possession,
             depthChart,
             coinToss,
-            playHistory,
+            playHistory
         };
-    }, [playersWithCalculatedStats, currentLineups, opponentNames, selectedWeek, ourScore, opponentScore, currentQuarter, homeTimeouts, awayTimeouts, possession, depthChart, coinToss, playHistory]);
+    }, [playersWithCalculatedStats, currentLineups, opponentNames, selectedWeek, ourScore, opponentScore, currentQuarter, gameTime, isClockRunning, homeTimeouts, awayTimeouts, possession, depthChart, coinToss, playHistory]);
 
     // Debounced save of metadata to Firestore
     // FIX: Removed gameTime and isClockRunning from dependencies to prevent debounce cancellation every second.
@@ -937,8 +942,6 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
 
                 const payload = {
                     ...otherState,
-                    gameTime: getGameTime(),
-                    isClockRunning,
                     viewerPlayHistory // Include the full history in the main doc for Viewers
                 };
 
@@ -965,12 +968,7 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
              const { playHistory, ...otherState } = stateRef.current;
              const viewerPlayHistory = playHistory.map(p => ({ ...p, playerIds: Array.from(p.playerIds) }));
              
-             saveGameStateToFirebase(user.uid, selectedWeek, { 
-                 ...otherState, 
-                 gameTime: getGameTime(),
-                 isClockRunning,
-                 viewerPlayHistory 
-             })
+             saveGameStateToFirebase(user.uid, selectedWeek, { ...otherState, viewerPlayHistory })
                 .catch(e => console.error("Final time save failed", e));
         }
     }, [isClockRunning, isWeekLoading, user, selectedWeek]);
@@ -1184,7 +1182,7 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
                 if (q1 === q2) duration = time1 - time2;
                 else if (q2 > q1) duration = time1 + ((q2 - q1 - 1) * 600) + (600 - time2);
                 if(duration > 0 && duration < 900) {
-                    if (play.type === PlayType.Offense || (play.type === PlayType.SpecialTeams && !play.playResult?.includes('Kickoff'))) ourTeamStats.timeOfPossession += duration;
+                    if (play.type === 'Offense' || (play.type === 'SpecialTeams' && !play.playResult?.includes('Kickoff'))) ourTeamStats.timeOfPossession += duration;
                     else oppTeamStats.timeOfPossession += duration;
                 }
             }
@@ -1412,7 +1410,7 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
     const handleUndo = useCallback(() => {
         if (undoStack.length === 0) return;
     
-        const currentState: GameStateSnapshot = { playHistory, ourScore, opponentScore, currentQuarter, gameTime: getGameTime(), isClockRunning, homeTimeouts, awayTimeouts, possession, currentLineups };
+        const currentState: GameStateSnapshot = { playHistory, ourScore, opponentScore, currentQuarter, gameTime, isClockRunning, homeTimeouts, awayTimeouts, possession, currentLineups };
         setRedoStack(prev => [...prev, currentState]);
     
         const stateToRestore = undoStack[undoStack.length - 1];
@@ -1440,12 +1438,12 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
         }
         
         showToast('Undo successful.', 'info');
-    }, [undoStack, playHistory, ourScore, opponentScore, currentQuarter, isClockRunning, homeTimeouts, awayTimeouts, possession, currentLineups, user, selectedWeek, showToast, getGameTime, setGameTime, setIsClockRunning]);
+    }, [undoStack, playHistory, ourScore, opponentScore, currentQuarter, gameTime, isClockRunning, homeTimeouts, awayTimeouts, possession, currentLineups, user, selectedWeek, showToast]);
     
     const handleRedo = useCallback(() => {
         if (redoStack.length === 0) return;
     
-        const currentState: GameStateSnapshot = { playHistory, ourScore, opponentScore, currentQuarter, gameTime: getGameTime(), isClockRunning, homeTimeouts, awayTimeouts, possession, currentLineups };
+        const currentState: GameStateSnapshot = { playHistory, ourScore, opponentScore, currentQuarter, gameTime, isClockRunning, homeTimeouts, awayTimeouts, possession, currentLineups };
         setUndoStack(prev => [...prev, currentState]);
     
         const stateToRestore = redoStack[redoStack.length - 1];
@@ -1473,7 +1471,7 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
         }
     
         showToast('Redo successful.', 'info');
-    }, [redoStack, playHistory, ourScore, opponentScore, currentQuarter, isClockRunning, homeTimeouts, awayTimeouts, possession, currentLineups, user, selectedWeek, showToast, getGameTime, setGameTime, setIsClockRunning]);
+    }, [redoStack, playHistory, ourScore, opponentScore, currentQuarter, gameTime, isClockRunning, homeTimeouts, awayTimeouts, possession, currentLineups, user, selectedWeek, showToast]);
 
     const handleTabChange = useCallback((tab: ActiveTab) => {
         const currentIndex = activeTabIndexRef.current;
@@ -1503,7 +1501,9 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
         }
     }, [user]);
 
-    // FIX: Add handlers for Coin Toss and Fourth Down modals
+    const handleToggleClock = useCallback(() => setIsClockRunning(prev => !prev), []);
+
+// FIX: Add handlers for Coin Toss and Fourth Down modals
     const handleStartGameFromCoinToss = useCallback((winner: 'us' | 'them', choice: 'receive' | 'defer') => {
         const weReceive = (winner === 'us' && choice === 'receive') || (winner === 'them' && choice === 'defer');
         const ourTeam = homeStatus === 'Home' ? 'home' : 'away';
@@ -1544,11 +1544,24 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
     }, [specialTeamsFormations, setSelectedFormationName]);
 
     useEffect(() => {
-        if (gameTime === 0 && isClockRunning) {
-            handleQuarterEnd(currentQuarter);
+        let timer: number | undefined;
+        if (isClockRunning && gameTime > 0) {
+            timer = window.setInterval(() => {
+                setGameTime(gt => {
+                    const newTime = gt - 1;
+                    if (newTime > 0) {
+                        return newTime;
+                    }
+                    
+                    setIsClockRunning(false);
+                    handleQuarterEnd(currentQuarter);
+                    return 0;
+                });
+            }, 1000);
         }
-    }, [gameTime, isClockRunning, currentQuarter, handleQuarterEnd]);
-
+        return () => window.clearInterval(timer);
+    }, [isClockRunning, gameTime, handleQuarterEnd, currentQuarter]);
+    
     const handleScoreChange = useCallback((newOurScore: number, newOpponentScore: number) => {
         setOurScore(newOurScore);
         setOpponentScore(newOpponentScore);
@@ -1569,6 +1582,7 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
         }
     }, [homeTimeouts, awayTimeouts, showToast]);
 
+    const handleGameTimeChange = useCallback((newTimeInSeconds: number) => setGameTime(newTimeInSeconds), []);
     const handlePossessionChange = useCallback((team: 'home' | 'away') => {
         setPossession(team);
         const ourTeam = homeStatus === 'Home' ? 'home' : 'away';
@@ -1714,152 +1728,11 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
         tempPlayData.current = null;
     }, []);
 
-    const getUpdatedDepthChart = useCallback((currentDepthChart: Record<string, string[]>, player: Player, action: 'add' | 'remove' | 'update') => {
-        const newDepthChart = { ...currentDepthChart };
-        const allDisplayGroups = { ...OFFENSE_DISPLAY_GROUPS, ...DEFENSE_DISPLAY_GROUPS, ...ST_DISPLAY_GROUPS };
-        const playerPositions = player.position.split(/[,/]+/).map(p => normalizePosition(p));
-
-        Object.keys(allDisplayGroups).forEach(group => {
-            const positionsInGroup = allDisplayGroups[group as keyof typeof allDisplayGroups];
-            const isMatch = playerPositions.some(pPos => positionsInGroup.includes(pPos));
-            
-            if (isMatch) {
-                let currentGroupOrder = newDepthChart[group] ? [...newDepthChart[group]] : [];
-                const playerIndex = currentGroupOrder.indexOf(player.id);
-
-                if (action === 'remove') {
-                    if (playerIndex > -1) {
-                        currentGroupOrder.splice(playerIndex, 1);
-                    }
-                } else if (action === 'add' || action === 'update') {
-                    if (playerIndex === -1) {
-                        currentGroupOrder.push(player.id);
-                    }
-                }
-                newDepthChart[group] = currentGroupOrder;
-            } else if (action === 'update' || action === 'remove') {
-                // If it was an update and the player no longer has this position, remove them
-                let currentGroupOrder = newDepthChart[group] ? [...newDepthChart[group]] : [];
-                const playerIndex = currentGroupOrder.indexOf(player.id);
-                if (playerIndex > -1) {
-                    currentGroupOrder.splice(playerIndex, 1);
-                    newDepthChart[group] = currentGroupOrder;
-                }
-            }
-        });
-
-        return newDepthChart;
-    }, []);
-
-    const removePlayerFromDepthChart = useCallback((currentDepthChart: Record<string, string[]>, playerId: string) => {
-        const newDepthChart = { ...currentDepthChart };
-        Object.keys(newDepthChart).forEach(group => {
-            newDepthChart[group] = newDepthChart[group].filter(id => id !== playerId);
-        });
-        return newDepthChart;
-    }, []);
-
-    const getDefaultLineupForFormation = useCallback((formationName: string, playType: PlayType) => {
-        const formations = getFormationsForType(playType, offenseFormations, defenseFormations, specialTeamsFormations);
-        const formationData = formations[formationName];
-        if (!formationData) return [];
-
-        const formationPositions = formationData.positions;
-        const usedPlayerIds = new Set<string>();
-        const depthChartLineup = new Array(formationPositions.length).fill(null);
-        const allDisplayGroups = { ...OFFENSE_DISPLAY_GROUPS, ...DEFENSE_DISPLAY_GROUPS, ...ST_DISPLAY_GROUPS };
-        const playingPlayerIds = new Set(players.filter(p => p.status === PlayerStatus.Playing).map(p => p.id));
-
-        const groupPriority = [
-            ...Object.keys(OFFENSE_DISPLAY_GROUPS),
-            ...Object.keys(DEFENSE_DISPLAY_GROUPS),
-            ...Object.keys(ST_DISPLAY_GROUPS)
-        ];
-
-        const genericGroupUsageCounter: Record<string, number> = {};
-
-        formationPositions.forEach((position, index) => {
-            const posLabel = position.label.toUpperCase();
-            const normalizedPosLabel = normalizePosition(posLabel);
-            
-            // Prioritize groups that are more specific to the position label
-            const potentialGroups = groupPriority.filter(groupName => 
-                allDisplayGroups[groupName as keyof typeof allDisplayGroups].includes(normalizedPosLabel)
-            ).sort((a, b) => {
-                // Exact match or primary position group gets priority
-                const aExact = a.toUpperCase() === normalizedPosLabel || a.toUpperCase().startsWith(normalizedPosLabel);
-                const bExact = b.toUpperCase() === normalizedPosLabel || b.toUpperCase().startsWith(normalizedPosLabel);
-                if (aExact && !bExact) return -1;
-                if (!aExact && bExact) return 1;
-                return 0;
-            });
-
-            if (potentialGroups.length === 0) return;
-
-            // Try to find a player from the potential groups
-            for (const groupName of potentialGroups) {
-                if (depthChart[groupName]) {
-                    for (const playerId of depthChart[groupName]) {
-                        if (playerId && !usedPlayerIds.has(playerId) && playingPlayerIds.has(playerId)) {
-                            // Additional check: Does the player actually have this position?
-                            const player = players.find(p => p.id === playerId);
-                            if (player) {
-                                const playerPos = player.position.toUpperCase();
-                                
-                                // If the position label is specific (like QB, RB, WR), ensure the player has it
-                                const specificPositions = ['QB', 'RB', 'FB', 'WR', 'TE', 'T', 'G', 'C', 'DE', 'DT', 'LB', 'CB', 'S', 'K', 'P', 'LS', 'KR', 'PR', 'GNR', 'BLOCK', 'WING'];
-                                if (specificPositions.includes(normalizedPosLabel)) {
-                                    const playerPositions = playerPos.split(/[,/]+/).map(p => normalizePosition(p.trim()));
-                                    if (!playerPositions.includes(normalizedPosLabel)) continue;
-                                }
-                            }
-
-                            depthChartLineup[index] = playerId;
-                            usedPlayerIds.add(playerId);
-                            break;
-                        }
-                    }
-                }
-                if (depthChartLineup[index]) break;
-            }
-        });
-
-        return depthChartLineup;
-    }, [offenseFormations, defenseFormations, specialTeamsFormations, players, depthChart]);
-
-    const handleUpdateLineup = useCallback((formationName: string, lineup: (string | null)[], playType: PlayType) => {
-// FIX: Replace spread syntax with Object.assign for wider compatibility.
-        setCurrentLineups(prev => Object.assign({}, prev, { [formationName]: lineup }));
-    }, []);
-
-    const handleSelectFormation = useCallback((name: string) => {
-        setSelectedFormationName(name);
-        // If we have no lineup for this formation, or it's completely empty, try to generate a default one
-        if (name && (!currentLineups[name] || currentLineups[name].every(id => id === null))) {
-            const defaultLineup = getDefaultLineupForFormation(name, playbookTab);
-            if (defaultLineup.some(id => id !== null)) {
-                handleUpdateLineup(name, defaultLineup, playbookTab);
-            }
-        }
-    }, [currentLineups, getDefaultLineupForFormation, handleUpdateLineup, playbookTab]);
-
     const handleUpdatePlayer = useCallback(async (playerId: string, updates: Partial<Player>) => {
         setSyncState('syncing');
         const originalPlayers = players;
-        const originalDepthChart = depthChart;
-
-        if (updates.position !== undefined) {
-            updates.position = updates.position.split(/[,/]+/).map(p => normalizePosition(p)).join(', ');
-        }
-        
-        const updatedPlayers = players.map(p => p.id === playerId ? Object.assign({}, p, updates) : p);
-        const updatedPlayer = updatedPlayers.find(p => p.id === playerId);
-        
-        setPlayers(updatedPlayers);
-        if (updatedPlayer && updates.position !== undefined) {
-            setDepthChart(prev => getUpdatedDepthChart(prev, updatedPlayer, 'update'));
-        }
-
+// FIX: Replace spread syntax with Object.assign for wider compatibility.
+        setPlayers(currentPlayers => currentPlayers.map(p => p.id === playerId ? Object.assign({}, p, updates) : p));
         try {
             await updatePlayerInAllWeeks(user.uid, seasonWeeks, playerId, updates);
             setSyncState('synced');
@@ -1869,18 +1742,11 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
             setSyncState('offline');
             showToast('Failed to update player.', 'error');
             setPlayers(originalPlayers);
-            setDepthChart(originalDepthChart);
         }
-    }, [user, seasonWeeks, showToast, players, depthChart, getUpdatedDepthChart]);
+    }, [user, seasonWeeks, showToast, players]);
     
     const handleDeletePlayer = useCallback(async (playerId: string) => {
         setSyncState('syncing');
-        const originalPlayers = players;
-        const originalDepthChart = depthChart;
-
-        setPlayers(prev => prev.filter(p => p.id !== playerId));
-        setDepthChart(prev => removePlayerFromDepthChart(prev, playerId));
-
         try {
             await deletePlayerFromAllWeeks(user.uid, seasonWeeks, playerId);
             setSyncState('synced');
@@ -1889,17 +1755,14 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
             console.error("Error deleting player: ", error);
             setSyncState('offline');
             showToast('Failed to delete player.', 'error');
-            setPlayers(originalPlayers);
-            setDepthChart(originalDepthChart);
         }
-    }, [user, seasonWeeks, showToast, players, depthChart, removePlayerFromDepthChart]);
+    }, [user, seasonWeeks, showToast]);
 
     const handleAddPlayer = async (player: { jerseyNumber: number; name: string; position: string; status: PlayerStatus }) => {
-        const normalizedPosition = player.position.split(/[,/]+/).map(p => normalizePosition(p)).join(', ');
         const newId = (players.length > 0 ? Math.max(...players.map(p => parseInt(p.id, 10))) : 0) + 1;
+// FIX: Replace spread syntax with Object.assign for wider compatibility.
         const newPlayer: Player = Object.assign({}, player, {
             id: newId.toString(),
-            position: normalizedPosition,
             offensePlayCount: 0,
             defensePlayCount: 0,
             specialTeamsPlayCount: 0,
@@ -1907,21 +1770,22 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
             imageUrl: DEFAULT_PLAYER_IMAGE,
         });
     
+        // Store original players for potential rollback
         const originalPlayers = players;
-        const originalDepthChart = depthChart;
     
+        // Optimistic update
         setPlayers(prevPlayers => [...prevPlayers, newPlayer].sort((a, b) => a.jerseyNumber - b.jerseyNumber));
-        setDepthChart(prev => getUpdatedDepthChart(prev, newPlayer, 'add'));
         setSyncState('syncing');
         
         try {
             await addPlayerToAllWeeks(user.uid, seasonWeeks, newPlayer);
+            // The listener will eventually update state from Firestore, solidifying the change.
             setSyncState('synced');
             showToast('Player added to all weeks.', 'success');
         } catch (error) {
             console.error('Error adding player:', error);
+            // Rollback on error
             setPlayers(originalPlayers);
-            setDepthChart(originalDepthChart);
             setSyncState('offline');
             showToast('Failed to add player. Reverting change.', 'error');
         }
@@ -1929,45 +1793,30 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
     
     const handleRosterImport = async (importedPlayers: ImportedRosterPlayer[]) => {
         setSyncState('syncing');
-        const originalPlayers = players;
-        const originalDepthChart = depthChart;
-
         const updatedPlayers = [...players];
-        let updatedDepthChart = { ...depthChart };
         let updatedCount = 0;
         let addedCount = 0;
-
         for (const imp of importedPlayers) {
-            const normalizedPos = imp.position.split(/[,/]+/).map(p => normalizePosition(p)).join(', ');
             const existingPlayerIndex = updatedPlayers.findIndex(p => p.name.toLowerCase() === imp.name.toLowerCase() || p.jerseyNumber === imp.jerseyNumber);
-            let playerToProcess: Player;
-
             if (existingPlayerIndex > -1) {
                 const existingPlayer = updatedPlayers[existingPlayerIndex];
-                updatedPlayers[existingPlayerIndex] = Object.assign({}, existingPlayer, { jerseyNumber: imp.jerseyNumber, position: normalizedPos, status: imp.status, imageUrl: existingPlayer.imageUrl || DEFAULT_PLAYER_IMAGE });
-                playerToProcess = updatedPlayers[existingPlayerIndex];
+// FIX: Replace spread syntax with Object.assign for wider compatibility.
+                updatedPlayers[existingPlayerIndex] = Object.assign({}, existingPlayer, { jerseyNumber: imp.jerseyNumber, position: imp.position, status: imp.status, imageUrl: existingPlayer.imageUrl || DEFAULT_PLAYER_IMAGE });
                 updatedCount++;
             } else {
                 const newId = (Math.max(0, ...updatedPlayers.map(p => parseInt(p.id))) || 0) + 1;
-                const newPlayer: Player = { id: newId.toString(), jerseyNumber: imp.jerseyNumber, name: imp.name, position: normalizedPos, status: imp.status, offensePlayCount: 0, defensePlayCount: 0, specialTeamsPlayCount: 0, timeOnField: 0, imageUrl: DEFAULT_PLAYER_IMAGE };
+                const newPlayer: Player = { id: newId.toString(), jerseyNumber: imp.jerseyNumber, name: imp.name, position: imp.position, status: imp.status, offensePlayCount: 0, defensePlayCount: 0, specialTeamsPlayCount: 0, timeOnField: 0, imageUrl: DEFAULT_PLAYER_IMAGE };
                 updatedPlayers.push(newPlayer);
-                playerToProcess = newPlayer;
                 addedCount++;
             }
-
-            updatedDepthChart = getUpdatedDepthChart(updatedDepthChart, playerToProcess, 'update');
         }
-
         try {
             await updateRosterForAllWeeks(user.uid, seasonWeeks, updatedPlayers);
             setPlayers(updatedPlayers.sort((a,b) => a.jerseyNumber - b.jerseyNumber));
-            setDepthChart(updatedDepthChart);
             setSyncState('synced');
-            showToast(`Roster updated: ${addedCount} added, ${updatedCount} updated. Depth chart populated.`, 'success');
+            showToast(`Roster updated: ${addedCount} added, ${updatedCount} updated.`, 'success');
         } catch (error) {
             console.error("Error updating roster from import:", error);
-            setPlayers(originalPlayers);
-            setDepthChart(originalDepthChart);
             setSyncState('offline');
             showToast("Failed to update roster.", 'error');
         }
@@ -1987,6 +1836,11 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
         setIsPlayDetailsModalOpen(true);
     }, [offenseFormations, defenseFormations, specialTeamsFormations]);
     
+    const handleUpdateLineup = useCallback((formationName: string, lineup: (string | null)[], playType: PlayType) => {
+// FIX: Replace spread syntax with Object.assign for wider compatibility.
+        setCurrentLineups(prev => Object.assign({}, prev, { [formationName]: lineup }));
+    }, []);
+
     const handleResetLineupToDefault = useCallback((formationName: string) => {
         setCurrentLineups(prev => {
             const newCurrentLineups = { ...prev };
@@ -2507,7 +2361,7 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
 
         Object.keys(allDisplayGroups).forEach(group => {
             const positionsInGroup = allDisplayGroups[group as keyof typeof allDisplayGroups];
-            const playerPositions = player.position.split(/[,/]+/).map(p => normalizePosition(p));
+            const playerPositions = player.position.toUpperCase().split(',').map(p => p.trim());
             const isMatch = playerPositions.some(pPos => positionsInGroup.includes(pPos));
             
             if (isMatch) {
@@ -2543,30 +2397,6 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
             [group]: playerIds
         }));
     }, []);
-
-    const handleRebuildDepthChart = useCallback(() => {
-        if (players.length === 0) return;
-        
-        let newDepthChart: Record<string, string[]> = {};
-        players.forEach(player => {
-            newDepthChart = getUpdatedDepthChart(newDepthChart, player, 'add');
-        });
-        
-        setDepthChart(newDepthChart);
-        showToast('Depth chart rebuilt from roster.', 'success');
-    }, [players, getUpdatedDepthChart, showToast]);
-
-    // Auto-populate depth chart if it's empty but players exist
-    useEffect(() => {
-        if (!isWeekLoading && players.length > 0 && Object.keys(depthChart).length === 0) {
-            console.log("Auto-populating empty depth chart...");
-            let newDepthChart: Record<string, string[]> = {};
-            players.forEach(player => {
-                newDepthChart = getUpdatedDepthChart(newDepthChart, player, 'add');
-            });
-            setDepthChart(newDepthChart);
-        }
-    }, [isWeekLoading, players, depthChart, getUpdatedDepthChart]);
 
     // ... other handlers
     const handleAddNewEvent = () => {
@@ -2769,29 +2599,10 @@ export const GameStateProvider: React.FC<{ children: ReactNode; user: any; initi
         opponentNames, selectedWeek, downAndDistance, isWeekLoading
     };
 
-    // Auto-populate depth chart if it's empty but we have players with positions
-    useEffect(() => {
-        if (players.length > 0 && !isWeekLoading && Object.keys(depthChart).length === 0) {
-            const hasPositions = players.some(p => p.position && p.position.trim() !== '');
-            if (hasPositions) {
-                console.log('Auto-populating empty depth chart from roster positions');
-                let newDepthChart: Record<string, string[]> = {};
-                players.forEach(p => {
-                    newDepthChart = getUpdatedDepthChart(newDepthChart, p, 'add');
-                });
-                setDepthChart(newDepthChart);
-            }
-        }
-    }, [players, isWeekLoading, depthChart, getUpdatedDepthChart]);
-
-    const contextValue = useMemo(() => ({
-        isResettingFormations, handleResetAllFormations, isCheckingForUpdate, handleCheckForUpdate, isGeneratingDemo, handleLoadDemoData, isSigningOut, handleSignOut, handleClearCacheAndSignOut, user, syncState, selectedWeek, seasonWeeks, players: playersWithCalculatedStats, playHistory, undoStack, redoStack, currentLineups, offenseFormations, defenseFormations, specialTeamsFormations, depthChart, activeTab, playbookTab, selectedFormationName, animationClass, isSummaryModalOpen, isReportsModalOpen, isExportingPdf, gameSummaryData, isQuarterSummaryModalOpen, quarterSummaryData, quarterPlaysForSummary, isImportModalOpen, initialImportTab, isSettingsModalOpen, isAddEventModalOpen, editingPlayIndex, editingFormation, editingEventWeek, isPlayDetailsModalOpen, tempPlayData, theme, toast, isWeekLoading, fieldLogoUrl, isWeekSelectorModalOpen, navBarPosition, opponentNames, opponentCities, homeAwayStatus, weekDates, weekResults, ourScore, opponentScore, currentQuarter, homeTimeouts, awayTimeouts, possession, homeStatus, insertionIndex, scrollToPlayIndex, ourStats, opponentStats, nextPlayState, isCoinTossModalOpen, isFourthDownModalOpen, showWalkthrough, aiSummary, teamName, teamCity, coachName, ageDivision, customTheme, seasonRecord, customIconSheet, defaultIconSheet, gameTime, isClockRunning, getGameTime, setGameTime, setIsClockRunning, handleSaveCustomIconSheet, setAiSummary, handleCompleteWalkthrough, setScrollToPlayIndex, handleInitiateInsert, handleCancelInsert, handleThemeChange, showToast, handleNavBarPositionChange, mainPaddingClass, handleWeekChange, handleStartGameFromCoinToss, handleFourthDownDecision, handleResetWeek, handleUndo, handleRedo, handleTabChange, handleToggleClock, handleScoreChange, handleUseTimeout, handleGameTimeChange, handlePossessionChange, lastPlay, downAndDistance, handleLineupConfirm, handleUpdateLineup, handleSavePlayDetails, handleOpenReportsModal, handleImportGame, handleClosePlayDetails, handleUpdatePlayer, handleDeletePlayer, handleEditPlay, handleSaveEditedPlay, handleDeletePlay, handleReorderPlay, handleEditFormation, handleCreateFormation, handleSaveFormation, handleDuplicateFormation, handleDeleteFormation, handleImport, handleSaveFieldLogo, handleExportJson, handleTriggerImport, handleExportPdf, startNextQuarter, handleQuarterEnd, getFormationsForEditModal, scoreboardProps, setPlaybookTab, setSelectedFormationName, setIsSummaryModalOpen, setIsReportsModalOpen, setIsImportModalOpen, setIsSettingsModalOpen, setIsAddEventModalOpen, setIsWeekSelectorModalOpen, setIsCoinTossModalOpen, setIsFourthDownModalOpen, setEditingPlayIndex, setEditingFormation, setEditingEventWeek, handleAddNewEvent, handleEditEvent, handleSaveEvent, handleDeleteEvent, handleTeamInfoChange, handleAgeDivisionChange, handleAddPlayer, handleRosterImport, handleSetFormationAsDefault, handleSetPlayerAsStarter, handleUpdateDepthChart, handleRebuildDepthChart, handleSelectFormation, handleCustomThemeChange, handleResetLineupToDefault
-    }), [
-        isResettingFormations, handleResetAllFormations, isCheckingForUpdate, handleCheckForUpdate, isGeneratingDemo, handleLoadDemoData, isSigningOut, handleSignOut, handleClearCacheAndSignOut, user, syncState, selectedWeek, seasonWeeks, playersWithCalculatedStats, playHistory, undoStack, redoStack, currentLineups, offenseFormations, defenseFormations, specialTeamsFormations, depthChart, activeTab, playbookTab, selectedFormationName, animationClass, isSummaryModalOpen, isReportsModalOpen, isExportingPdf, gameSummaryData, isQuarterSummaryModalOpen, quarterSummaryData, quarterPlaysForSummary, isImportModalOpen, initialImportTab, isSettingsModalOpen, isAddEventModalOpen, editingPlayIndex, editingFormation, editingEventWeek, isPlayDetailsModalOpen, tempPlayData, theme, toast, isWeekLoading, fieldLogoUrl, isWeekSelectorModalOpen, navBarPosition, opponentNames, opponentCities, homeAwayStatus, weekDates, weekResults, ourScore, opponentScore, currentQuarter, homeTimeouts, awayTimeouts, possession, homeStatus, insertionIndex, scrollToPlayIndex, ourStats, opponentStats, nextPlayState, isCoinTossModalOpen, isFourthDownModalOpen, showWalkthrough, aiSummary, teamName, teamCity, coachName, ageDivision, customTheme, seasonRecord, customIconSheet, defaultIconSheet, gameTime, isClockRunning, getGameTime, setGameTime, setIsClockRunning, handleSaveCustomIconSheet, setAiSummary, handleCompleteWalkthrough, setScrollToPlayIndex, handleInitiateInsert, handleCancelInsert, handleThemeChange, showToast, handleNavBarPositionChange, mainPaddingClass, handleWeekChange, handleStartGameFromCoinToss, handleFourthDownDecision, handleResetWeek, handleUndo, handleRedo, handleTabChange, handleToggleClock, handleScoreChange, handleUseTimeout, handleGameTimeChange, handlePossessionChange, lastPlay, downAndDistance, handleLineupConfirm, handleUpdateLineup, handleSavePlayDetails, handleOpenReportsModal, handleImportGame, handleClosePlayDetails, handleUpdatePlayer, handleDeletePlayer, handleEditPlay, handleSaveEditedPlay, handleDeletePlay, handleReorderPlay, handleEditFormation, handleCreateFormation, handleSaveFormation, handleDuplicateFormation, handleDeleteFormation, handleImport, handleSaveFieldLogo, handleExportJson, handleTriggerImport, handleExportPdf, startNextQuarter, handleQuarterEnd, getFormationsForEditModal, scoreboardProps, setPlaybookTab, setSelectedFormationName, setIsSummaryModalOpen, setIsReportsModalOpen, setIsImportModalOpen, setIsSettingsModalOpen, setIsAddEventModalOpen, setIsWeekSelectorModalOpen, setIsCoinTossModalOpen, setIsFourthDownModalOpen, setEditingPlayIndex, setEditingFormation, setEditingEventWeek, handleAddNewEvent, handleEditEvent, handleSaveEvent, handleDeleteEvent, handleTeamInfoChange, handleAgeDivisionChange, handleAddPlayer, handleRosterImport, handleSetFormationAsDefault, handleSetPlayerAsStarter, handleUpdateDepthChart, handleRebuildDepthChart, handleSelectFormation, handleCustomThemeChange, handleResetLineupToDefault
-    ]);
-
     return (
-        <GameStateContext.Provider value={contextValue}>
+        <GameStateContext.Provider value={{
+            isResettingFormations, handleResetAllFormations, isCheckingForUpdate, handleCheckForUpdate, isGeneratingDemo, handleLoadDemoData, isSigningOut, handleSignOut, handleClearCacheAndSignOut, user, syncState, selectedWeek, seasonWeeks, players: playersWithCalculatedStats, playHistory, undoStack, redoStack, currentLineups, offenseFormations, defenseFormations, specialTeamsFormations, depthChart, activeTab, playbookTab, selectedFormationName, animationClass, isSummaryModalOpen, isReportsModalOpen, isExportingPdf, gameSummaryData, isQuarterSummaryModalOpen, quarterSummaryData, quarterPlaysForSummary, isImportModalOpen, initialImportTab, isSettingsModalOpen, isAddEventModalOpen, editingPlayIndex, editingFormation, editingEventWeek, isPlayDetailsModalOpen, tempPlayData, theme, toast, isWeekLoading, fieldLogoUrl, isWeekSelectorModalOpen, navBarPosition, opponentNames, opponentCities, homeAwayStatus, weekDates, weekResults, ourScore, opponentScore, currentQuarter, gameTime, isClockRunning, homeTimeouts, awayTimeouts, possession, homeStatus, insertionIndex, scrollToPlayIndex, ourStats, opponentStats, nextPlayState, isCoinTossModalOpen, isFourthDownModalOpen, showWalkthrough, aiSummary, teamName, teamCity, coachName, ageDivision, customTheme, seasonRecord, customIconSheet, defaultIconSheet, handleSaveCustomIconSheet, setAiSummary, handleCompleteWalkthrough, setScrollToPlayIndex, handleInitiateInsert, handleCancelInsert, handleThemeChange, showToast, handleNavBarPositionChange, mainPaddingClass, handleWeekChange, handleStartGameFromCoinToss, handleFourthDownDecision, handleResetWeek, handleUndo, handleRedo, handleTabChange, handleToggleClock, handleScoreChange, handleUseTimeout, handleGameTimeChange, handlePossessionChange, lastPlay, downAndDistance, handleLineupConfirm, handleUpdateLineup, handleSavePlayDetails, handleOpenReportsModal, handleImportGame, handleClosePlayDetails, handleUpdatePlayer, handleDeletePlayer, handleEditPlay, handleSaveEditedPlay, handleDeletePlay, handleReorderPlay, handleEditFormation, handleCreateFormation, handleSaveFormation, handleDuplicateFormation, handleDeleteFormation, handleImport, handleSaveFieldLogo, handleExportJson, handleTriggerImport, handleExportPdf, startNextQuarter, handleQuarterEnd, getFormationsForEditModal, scoreboardProps, setPlaybookTab, setSelectedFormationName, setIsSummaryModalOpen, setIsReportsModalOpen, setIsImportModalOpen, setIsSettingsModalOpen, setIsAddEventModalOpen, setIsWeekSelectorModalOpen, setIsCoinTossModalOpen, setIsFourthDownModalOpen, setEditingPlayIndex, setEditingFormation, setEditingEventWeek, handleAddNewEvent, handleEditEvent, handleSaveEvent, handleDeleteEvent, handleTeamInfoChange, handleAgeDivisionChange, handleAddPlayer, handleRosterImport, handleSetFormationAsDefault, handleSetPlayerAsStarter, handleUpdateDepthChart, handleCustomThemeChange, handleResetLineupToDefault
+        }}>
             {children}
         </GameStateContext.Provider>
     );

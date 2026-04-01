@@ -1,11 +1,8 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Player, QuarterSummaryData, FormationStats, PlayerStats } from '../types';
 import { formatTime, getLastName } from '../utils';
-import { PassingIcon, RunningIcon, TacklingIcon, FieldGoalIcon, TurnoverIcon, SpinnerIcon, CameraIcon } from './icons';
+import { PassingIcon, RunningIcon, TacklingIcon, FieldGoalIcon, TurnoverIcon } from './icons';
 import { useGameState } from '../contexts/GameStateContext';
-
-// Declare html2canvas as it's loaded from CDN
-declare const window: any;
 
 const FormationStatsCard: React.FC<{ name: string; stats: QuarterSummaryData['formationStats'][string] }> = ({ name, stats }) => {
     const isKickingFormation = name.toLowerCase().includes('pat') || name.toLowerCase().includes('p.a.t') || name.toLowerCase().includes('field goal');
@@ -131,13 +128,10 @@ const TopPerformerItem: React.FC<{
 const GameSummaryModal: React.FC = () => {
   const { 
     players, playHistory, setIsSummaryModalOpen, opponentNames, selectedWeek,
-    ourScore, opponentScore, gameSummaryData, showToast
+    ourScore, opponentScore, gameSummaryData 
   } = useGameState();
 
   const [activeTab, setActiveTab] = useState<'players' | 'formations' | 'performers'>('players');
-  const [isExportingImage, setIsExportingImage] = useState(false);
-  const captureRef = useRef<HTMLDivElement>(null);
-  
   const onClose = () => setIsSummaryModalOpen(false);
 
   const { formationStats, topPerformers } = gameSummaryData || {};
@@ -166,115 +160,69 @@ const GameSummaryModal: React.FC = () => {
   const activeTabStyle = "border-[var(--accent-primary)] text-[var(--accent-primary)]";
   const inactiveTabStyle = "border-transparent text-[var(--text-secondary)] hover:text-white";
 
-  const handleShareImage = async () => {
-      if (!captureRef.current) return;
-      setIsExportingImage(true);
-
-      try {
-          const { html2canvas } = window;
-          if (!html2canvas) throw new Error("html2canvas not loaded");
-
-          // We need to capture the visible tab content or the whole modal body. 
-          // For a shareable image, capturing the currently visible tab with the header is usually best.
-          const canvas = await html2canvas(captureRef.current, {
-              backgroundColor: '#111827', // Force dark background as glass effect might render transparent
-              scale: 2, // Higher resolution
-              useCORS: true,
-              logging: false
-          });
-
-          const image = canvas.toDataURL("image/png");
-          const link = document.createElement('a');
-          link.href = image;
-          link.download = `GameSummary_${selectedWeek}.png`;
-          link.click();
-          showToast("Image summary downloaded!", "success");
-      } catch (e) {
-          console.error("Image export failed", e);
-          showToast("Failed to generate image.", "error");
-      } finally {
-          setIsExportingImage(false);
-      }
-  };
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50 p-4 font-sans">
       <div className="glass-effect rounded-lg shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
-        {/* We attach ref to a wrapper of header+main so we can capture everything */}
-        <div ref={captureRef} className="flex flex-col flex-grow min-h-0 bg-[#111827]"> 
-            <header className="p-4 border-b border-[var(--border-primary)] flex justify-between items-center sticky top-0 bg-transparent z-10">
-                <h2 className="text-2xl font-bold text-[var(--text-primary)]">Game Summary</h2>
-                <div className="flex gap-2" data-html2canvas-ignore="true">
-                    <button 
-                        onClick={handleShareImage} 
-                        disabled={isExportingImage}
-                        className="p-2 rounded-full hover:bg-white/10 text-[var(--accent-primary)]" 
-                        title="Share as Image"
-                    >
-                        {isExportingImage ? <SpinnerIcon className="h-6 w-6" /> : <CameraIcon className="h-6 w-6" />}
-                    </button>
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10" aria-label="Close summary">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[var(--text-primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                </div>
-            </header>
+        <header className="p-4 border-b border-[var(--border-primary)] flex justify-between items-center sticky top-0 bg-transparent z-10">
+            <h2 className="text-2xl font-bold text-[var(--text-primary)]">Game Summary</h2>
+            <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10" aria-label="Close summary"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+        </header>
 
-            <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-[var(--border-primary)] bg-transparent">
-            <div>
-                <label htmlFor="opponentName" className="block text-xs font-medium text-[var(--text-secondary)]">Opponent Name</label>
-                <input type="text" id="opponentName" value={opponentNames[selectedWeek] || ''} className="mt-1 block w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md shadow-sm py-2 px-3 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]" readOnly/>
-            </div>
-            <div><label htmlFor="ourScore" className="block text-xs font-medium text-[var(--text-secondary)]">Our Score</label><input type="number" id="ourScore" value={ourScore.toString()} className="mt-1 block w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md shadow-sm py-2 px-3 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]" readOnly/></div>
-            <div><label htmlFor="opponentScore" className="block text-xs font-medium text-[var(--text-secondary)]">Opponent Score</label><input type="number" id="opponentScore" value={opponentScore.toString()} className="mt-1 block w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md shadow-sm py-2 px-3 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]" readOnly/></div>
-            </div>
-
-            <main className="flex-grow flex flex-col min-h-0">
-                <div className="px-4 border-b border-[var(--border-primary)] flex-shrink-0">
-                    <nav className="flex justify-around -mb-px">
-                        <button onClick={() => setActiveTab('players')} className={`${tabButtonStyle} ${activeTab === 'players' ? activeTabStyle : inactiveTabStyle}`}>Player Stats</button>
-                        <button onClick={() => setActiveTab('formations')} className={`${tabButtonStyle} ${activeTab === 'formations' ? activeTabStyle : inactiveTabStyle}`}>Formations</button>
-                        <button onClick={() => setActiveTab('performers')} className={`${tabButtonStyle} ${activeTab === 'performers' ? activeTabStyle : inactiveTabStyle}`}>Performers</button>
-                    </nav>
-                </div>
-
-                <div className="p-4 overflow-y-auto">
-                    {activeTab === 'players' && (
-                        <table className="min-w-full divide-y divide-[var(--border-primary)]">
-                            <thead className="bg-[var(--bg-tertiary)]/50"><tr><th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase">Jer #</th><th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase">Name</th><th className="px-3 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase">Off</th><th className="px-3 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase">Def</th><th className="px-3 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase">ST</th><th className="px-3 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase">Total</th><th className="px-3 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase">Time</th><th className="px-4 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase">% Plays</th></tr></thead>
-                            <tbody className="bg-transparent divide-y divide-[var(--border-primary)]">
-                                {sortedPlayers.map(p => {
-                                    const total = p.offensePlayCount + p.defensePlayCount + p.specialTeamsPlayCount;
-                                    const participation = totalPlays > 0 ? Math.round((total / totalPlays) * 100) : 0;
-                                    return (<tr key={p.id}>
-                                        <td className="px-4 py-4 text-sm font-bold text-center">{p.jerseyNumber}</td><td className="px-6 py-4 text-sm">{p.name}</td>
-                                        <td className="px-3 py-4 text-center text-base font-mono">{p.offensePlayCount}</td><td className="px-3 py-4 text-center text-base font-mono">{p.defensePlayCount}</td>
-                                        <td className="px-3 py-4 text-center text-base font-mono">{p.specialTeamsPlayCount}</td><td className="px-3 py-4 text-center text-base font-bold">{total}</td>
-                                        <td className="px-3 py-4 text-center text-sm font-mono text-[var(--accent-primary)]">{formatTime(p.timeOnField)}</td>
-                                        <td className="px-4 py-4"><div className="flex items-center justify-center"><span className="mr-2 text-sm font-mono w-8 text-right">{participation}%</span><div className="w-24 bg-[var(--bg-tertiary)] rounded-full h-2.5"><div className="bg-[var(--accent-primary)] h-2.5 rounded-full" style={{width: `${participation}%`}}></div></div></div></td>
-                                    </tr>)
-                                })}
-                            </tbody>
-                        </table>
-                    )}
-                    {activeTab === 'formations' && (
-                        <div className="space-y-3">
-                            {sortedFormations.length > 0 ? sortedFormations.map(([name, stats]) => <FormationStatsCard key={name} name={name} stats={stats as FormationStats}/>) : <p className="text-center py-8 text-[var(--text-secondary)]">No formations to analyze.</p>}
-                        </div>
-                    )}
-                    {activeTab === 'performers' && topPerformers && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <TopPerformerItem icon={<PassingIcon className="w-6 h-6"/>} category="Passing" playerStats={topPerformers.passers} playerMap={playerMap} statType="yards" />
-                            <TopPerformerItem icon={<RunningIcon className="w-6 h-6"/>} category="Rushing" playerStats={topPerformers.runners} playerMap={playerMap} statType="yards" />
-                            <TopPerformerItem icon={<PassingIcon className="w-6 h-6 transform -scale-x-100 opacity-70"/>} category="Receiving" playerStats={topPerformers.receivers} playerMap={playerMap} statType="yards" />
-                            <TopPerformerItem icon={<RunningIcon className="w-6 h-6 opacity-70"/>} category="Returns" playerStats={topPerformers.returners} playerMap={playerMap} statType="yards" />
-                            <TopPerformerItem icon={<TacklingIcon className="w-6 h-6"/>} category="Tackles" playerStats={topPerformers.tacklers} playerMap={playerMap} statType="count" />
-                            <TopPerformerItem icon={<TurnoverIcon className="w-6 h-6"/>} category="Takeaways" playerStats={topPerformers.interceptors} playerMap={playerMap} statType="count" />
-                            <TopPerformerItem icon={<FieldGoalIcon className="w-6 h-6"/>} category="Kicking" playerStats={topPerformers.kickers} playerMap={playerMap} statType="kicking" />
-                        </div>
-                    )}
-                </div>
-            </main>
+        <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-[var(--border-primary)] bg-transparent">
+          <div>
+            <label htmlFor="opponentName" className="block text-xs font-medium text-[var(--text-secondary)]">Opponent Name</label>
+            <input type="text" id="opponentName" value={opponentNames[selectedWeek] || ''} className="mt-1 block w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md shadow-sm py-2 px-3 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]" readOnly/>
+          </div>
+          <div><label htmlFor="ourScore" className="block text-xs font-medium text-[var(--text-secondary)]">Our Score</label><input type="number" id="ourScore" value={ourScore.toString()} className="mt-1 block w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md shadow-sm py-2 px-3 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]" readOnly/></div>
+          <div><label htmlFor="opponentScore" className="block text-xs font-medium text-[var(--text-secondary)]">Opponent Score</label><input type="number" id="opponentScore" value={opponentScore.toString()} className="mt-1 block w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-md shadow-sm py-2 px-3 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]" readOnly/></div>
         </div>
+
+        <main className="flex-grow flex flex-col min-h-0">
+            <div className="px-4 border-b border-[var(--border-primary)] flex-shrink-0">
+                <nav className="flex justify-around -mb-px">
+                    <button onClick={() => setActiveTab('players')} className={`${tabButtonStyle} ${activeTab === 'players' ? activeTabStyle : inactiveTabStyle}`}>Player Stats</button>
+                    <button onClick={() => setActiveTab('formations')} className={`${tabButtonStyle} ${activeTab === 'formations' ? activeTabStyle : inactiveTabStyle}`}>Formations</button>
+                    <button onClick={() => setActiveTab('performers')} className={`${tabButtonStyle} ${activeTab === 'performers' ? activeTabStyle : inactiveTabStyle}`}>Performers</button>
+                </nav>
+            </div>
+
+            <div className="p-4 overflow-y-auto">
+                {activeTab === 'players' && (
+                    <table className="min-w-full divide-y divide-[var(--border-primary)]">
+                        <thead className="bg-[var(--bg-tertiary)]/50"><tr><th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase">Jer #</th><th className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase">Name</th><th className="px-3 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase">Off</th><th className="px-3 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase">Def</th><th className="px-3 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase">ST</th><th className="px-3 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase">Total</th><th className="px-3 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase">Time</th><th className="px-4 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase">% Plays</th></tr></thead>
+                        <tbody className="bg-transparent divide-y divide-[var(--border-primary)]">
+                            {sortedPlayers.map(p => {
+                                const total = p.offensePlayCount + p.defensePlayCount + p.specialTeamsPlayCount;
+                                const participation = totalPlays > 0 ? Math.round((total / totalPlays) * 100) : 0;
+                                return (<tr key={p.id}>
+                                    <td className="px-4 py-4 text-sm font-bold text-center">{p.jerseyNumber}</td><td className="px-6 py-4 text-sm">{p.name}</td>
+                                    <td className="px-3 py-4 text-center text-base font-mono">{p.offensePlayCount}</td><td className="px-3 py-4 text-center text-base font-mono">{p.defensePlayCount}</td>
+                                    <td className="px-3 py-4 text-center text-base font-mono">{p.specialTeamsPlayCount}</td><td className="px-3 py-4 text-center text-base font-bold">{total}</td>
+                                    <td className="px-3 py-4 text-center text-sm font-mono text-[var(--accent-primary)]">{formatTime(p.timeOnField)}</td>
+                                    <td className="px-4 py-4"><div className="flex items-center justify-center"><span className="mr-2 text-sm font-mono w-8 text-right">{participation}%</span><div className="w-24 bg-[var(--bg-tertiary)] rounded-full h-2.5"><div className="bg-[var(--accent-primary)] h-2.5 rounded-full" style={{width: `${participation}%`}}></div></div></div></td>
+                                </tr>)
+                            })}
+                        </tbody>
+                    </table>
+                )}
+                {activeTab === 'formations' && (
+                    <div className="space-y-3">
+                        {sortedFormations.length > 0 ? sortedFormations.map(([name, stats]) => <FormationStatsCard key={name} name={name} stats={stats as FormationStats}/>) : <p className="text-center py-8 text-[var(--text-secondary)]">No formations to analyze.</p>}
+                    </div>
+                )}
+                {activeTab === 'performers' && topPerformers && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <TopPerformerItem icon={<PassingIcon className="w-6 h-6"/>} category="Passing" playerStats={topPerformers.passers} playerMap={playerMap} statType="yards" />
+                        <TopPerformerItem icon={<RunningIcon className="w-6 h-6"/>} category="Rushing" playerStats={topPerformers.runners} playerMap={playerMap} statType="yards" />
+                        <TopPerformerItem icon={<PassingIcon className="w-6 h-6 transform -scale-x-100 opacity-70"/>} category="Receiving" playerStats={topPerformers.receivers} playerMap={playerMap} statType="yards" />
+                        <TopPerformerItem icon={<RunningIcon className="w-6 h-6 opacity-70"/>} category="Returns" playerStats={topPerformers.returners} playerMap={playerMap} statType="yards" />
+                        <TopPerformerItem icon={<TacklingIcon className="w-6 h-6"/>} category="Tackles" playerStats={topPerformers.tacklers} playerMap={playerMap} statType="count" />
+                        <TopPerformerItem icon={<TurnoverIcon className="w-6 h-6"/>} category="Takeaways" playerStats={topPerformers.interceptors} playerMap={playerMap} statType="count" />
+                        <TopPerformerItem icon={<FieldGoalIcon className="w-6 h-6"/>} category="Kicking" playerStats={topPerformers.kickers} playerMap={playerMap} statType="kicking" />
+                    </div>
+                )}
+            </div>
+        </main>
          <footer className="p-4 border-t border-[var(--border-primary)] flex justify-end">
             <button onClick={onClose} className="px-6 py-2 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--border-primary)] focus:outline-none">Close</button>
         </footer>

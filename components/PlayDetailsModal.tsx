@@ -361,12 +361,6 @@ const PlayDetailsModal: React.FC = () => {
                             assignments={assignments}
                             onAssignmentsChange={() => {}}
                             onSlotClick={() => {}}
-                            onDrop={() => {}}
-                            onDragOver={() => {}}
-                            onDragLeave={() => {}}
-                            onDragStart={() => {}}
-                            draggedIndex={null}
-                            dragOverIndex={null}
                         />
                     )}
                     {activeSubTab === 'driveChart' && (
